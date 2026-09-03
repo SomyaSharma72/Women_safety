@@ -1,34 +1,7 @@
 import { IncidentReport, CaseStatus, IccUser } from '../types';
 
-const SURVIVOR_TOKEN_KEY = 'safereport_survivor_token';
-const SURVIVOR_EMAIL_KEY = 'safereport_survivor_email';
 const ICC_TOKEN_KEY = 'safereport_icc_token';
 const ICC_USER_KEY = 'safereport_icc_user';
-
-// ==========================================
-// Survivor Session Storage Helpers
-// ==========================================
-export function getSurvivorToken(): string | null {
-  return sessionStorage.getItem(SURVIVOR_TOKEN_KEY) || localStorage.getItem(SURVIVOR_TOKEN_KEY);
-}
-
-export function getSurvivorEmail(): string | null {
-  return sessionStorage.getItem(SURVIVOR_EMAIL_KEY) || localStorage.getItem(SURVIVOR_EMAIL_KEY);
-}
-
-export function setSurvivorSession(token: string, email: string): void {
-  sessionStorage.setItem(SURVIVOR_TOKEN_KEY, token);
-  sessionStorage.setItem(SURVIVOR_EMAIL_KEY, email);
-  localStorage.setItem(SURVIVOR_TOKEN_KEY, token);
-  localStorage.setItem(SURVIVOR_EMAIL_KEY, email);
-}
-
-export function clearSurvivorSession(): void {
-  sessionStorage.removeItem(SURVIVOR_TOKEN_KEY);
-  sessionStorage.removeItem(SURVIVOR_EMAIL_KEY);
-  localStorage.removeItem(SURVIVOR_TOKEN_KEY);
-  localStorage.removeItem(SURVIVOR_EMAIL_KEY);
-}
 
 // ==========================================
 // ICC Session Storage Helpers
@@ -62,55 +35,16 @@ export function clearIccSession(): void {
 }
 
 // ==========================================
-// API Calls: Survivor Verification & Reports
+// API Calls: Survivor Reports
 // ==========================================
-
-export async function sendSurvivorOtp(email: string): Promise<{ success: boolean; message: string }> {
-  const res = await fetch('/api/auth/send-otp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error || 'Failed to send verification code.');
-  }
-  return data;
-}
-
-export async function verifySurvivorOtp(
-  email: string,
-  otp: string
-): Promise<{ success: boolean; verificationToken: string; email: string }> {
-  const res = await fetch('/api/auth/verify-otp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, otp }),
-  });
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error || 'Failed to verify OTP code.');
-  }
-
-  setSurvivorSession(data.verificationToken, data.email);
-  return data;
-}
 
 export async function submitReport(
   reportData: Partial<IncidentReport>
 ): Promise<{ success: boolean; report: IncidentReport; message: string }> {
-  const token = getSurvivorToken();
-  if (!token) {
-    throw new Error('Email verification is required before submitting a report.');
-  }
-
   const res = await fetch('/api/reports', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(reportData),
   });
@@ -224,6 +158,23 @@ export async function iccGetCase(caseNumber: string): Promise<IncidentReport> {
     throw new Error(data.error || `Failed to fetch case ${caseNumber}`);
   }
   return data.report;
+}
+
+export async function iccGetEvidenceFile(caseNumber: string, evidenceId: string, download = false): Promise<Blob> {
+  const token = getIccToken();
+  if (!token) throw new Error('Unauthorized.');
+
+  const res = await fetch(
+    `/api/icc/cases/${encodeURIComponent(caseNumber)}/evidence/${encodeURIComponent(evidenceId)}/download${download ? '?download=1' : ''}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to access evidence.');
+  }
+
+  return res.blob();
 }
 
 export async function iccUpdateStatus(

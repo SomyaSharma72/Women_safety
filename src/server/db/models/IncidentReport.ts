@@ -45,6 +45,7 @@ export interface IIncidentReportDoc {
     uploadedAt: string;
     metadataStripped: boolean;
     encryptedHash: string;
+    storageKey?: string;
     previewUrl?: string;
     dataUrl?: string;
     mimeType?: string;
@@ -93,6 +94,7 @@ const EvidenceItemSchema = new Schema(
     uploadedAt: { type: String, required: true },
     metadataStripped: { type: Boolean, default: true },
     encryptedHash: { type: String, required: true },
+    storageKey: { type: String },
     previewUrl: { type: String },
     dataUrl: { type: String },
     mimeType: { type: String },
@@ -166,7 +168,7 @@ const IncidentReportSchema = new Schema<IIncidentReportDoc>(
     },
     isVerifiedInstitutionalUser: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     institutionDomain: {
       type: String,

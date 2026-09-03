@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { EyeOff, ExternalLink, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface QuickExitOverlayProps {
@@ -8,19 +8,6 @@ interface QuickExitOverlayProps {
 
 export const QuickExitOverlay: React.FC<QuickExitOverlayProps> = ({ isOpen, onClose }) => {
   const [redirecting, setRedirecting] = useState(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (!isOpen) {
-          // Trigger instant exit
-          window.location.replace('https://www.google.com/search?q=current+weather+forecast');
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
 
   const handleInstantRedirect = (url: string) => {
     setRedirecting(true);
@@ -47,12 +34,12 @@ export const QuickExitOverlay: React.FC<QuickExitOverlayProps> = ({ isOpen, onCl
 
         <div className="space-y-3 mb-6">
           <button
-            onClick={() => handleInstantRedirect('https://www.google.com/search?q=today+weather')}
+            onClick={() => handleInstantRedirect('https://weather.com/')}
             className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-rose-100 hover:border-[#94204D]/40 hover:bg-[#FFF8F9] text-left transition group cursor-pointer"
           >
             <div>
               <p className="font-semibold text-slate-900 text-sm">Open Weather Forecast</p>
-              <p className="text-xs text-slate-500">google.com/search?q=today+weather</p>
+              <p className="text-xs text-slate-500">weather.com</p>
             </div>
             <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-[#94204D] transition" />
           </button>

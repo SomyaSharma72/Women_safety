@@ -38,6 +38,7 @@ import {
 import { IncidentReport, PatternSignal, CaseStatus, ReportingMode, IccUser } from '../../types';
 import { PATTERN_ALERTS, DEPARTMENTS, CATEGORIES_METADATA } from '../../data/mockData';
 import { formatDate } from '../../lib/utils';
+import { iccGetEvidenceFile } from '../../lib/api';
 import { LogOut, UserCheck as OfficerIcon } from 'lucide-react';
 
 interface AuthorityDashboardProps {
@@ -72,6 +73,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
   const [actionStatus, setActionStatus] = useState<CaseStatus>('under_investigation');
   const [actionNote, setActionNote] = useState('');
   const [escalationTarget, setEscalationTarget] = useState<'external_ombudsman' | 'state_human_rights' | 'independent_legal_counsel'>('external_ombudsman');
+  const [activeEvidenceId, setActiveEvidenceId] = useState<string | null>(null);
 
   // Selected Report Object
   const selectedReport = reports.find((r) => r.caseNumber === selectedCaseNumber) || reports[0] || null;
@@ -109,6 +111,28 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
     onUpdateReportStatus(selectedReport.caseNumber, actionStatus, noteText);
     setIsActionModalOpen(false);
     setActionNote('');
+  };
+
+  const handleEvidenceAccess = async (evidenceId: string, download: boolean) => {
+    if (!selectedReport) return;
+    setActiveEvidenceId(evidenceId);
+    try {
+      const blob = await iccGetEvidenceFile(selectedReport.caseNumber, evidenceId, download);
+      const url = URL.createObjectURL(blob);
+      if (download) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = selectedReport.evidenceList.find((file) => file.id === evidenceId)?.fileName || 'evidence-file';
+        link.click();
+        URL.revokeObjectURL(url);
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err: any) {
+      window.alert(err.message || 'Unable to access evidence.');
+    } finally {
+      setActiveEvidenceId(null);
+    }
   };
 
   const getSeverityBadge = (severity?: string) => {
@@ -483,8 +507,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                         </>
                       )}
                       <span className="flex items-center gap-1 font-semibold text-slate-700">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        Verified Domain: {selectedReport.institutionDomain || '@institution.edu'}
+                        Institution: {selectedReport.organizationName || 'Unspecified'}
                       </span>
                       <span>&bull;</span>
                       <span>Filed: {formatDate(selectedReport.createdAt)}</span>
@@ -531,6 +554,18 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                       {selectedReport.evidenceList.length} Sealed Item(s)
                     </span>
                   </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">
+                    Authorized Reporter Contact
+                  </span>
+                  <div className="text-sm font-semibold text-emerald-950 mt-1">
+                    {selectedReport.reporterEmail || 'Email not provided'}
+                  </div>
+                  <p className="text-[11px] text-emerald-800 mt-1">
+                    Available to authorized ICC officers for case handling. This contact is not included in public case tracking.
+                  </p>
                 </div>
 
                 {/* PATTERN RADAR ALERT BOX (If Correlated with other cases) */}
@@ -703,7 +738,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                           <div>
                             <span className="font-bold text-slate-800 block truncate">{file.fileName}</span>
                             <span className="text-[11px] text-slate-500 font-mono">
-                              {file.fileSize} &bull; {file.encryptedHash.substring(0, 24)}...
+                              {file.fileType} &bull; {file.fileSize} &bull; {file.encryptedHash.substring(0, 24)}...
                             </span>
                           </div>
                         </div>
@@ -712,6 +747,22 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                           <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200">
                             Verified Hash
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => handleEvidenceAccess(file.id, false)}
+                            disabled={activeEvidenceId === file.id}
+                            className="px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 font-bold text-[10px] hover:border-[#94204D] hover:text-[#94204D] disabled:opacity-50"
+                          >
+                            <Eye className="w-3 h-3 inline mr-1" />View Evidence
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEvidenceAccess(file.id, true)}
+                            disabled={activeEvidenceId === file.id}
+                            className="px-2.5 py-1 rounded-lg bg-[#94204D] text-white font-bold text-[10px] hover:bg-[#7D1B41] disabled:opacity-50"
+                          >
+                            <Download className="w-3 h-3 inline mr-1" />Download Evidence
+                          </button>
                         </div>
                       </div>
                     ))}

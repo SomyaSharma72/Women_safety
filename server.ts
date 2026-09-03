@@ -6,9 +6,6 @@ import { createServer as createViteServer } from 'vite';
 import { connectToDatabase, isMongoConnected } from './src/server/db/connection';
 import {
   checkRateLimit,
-  generateOtp,
-  saveOtp,
-  verifyOtp,
   createSession,
   getSession,
   deleteSession,
@@ -26,7 +23,6 @@ import {
   verifyIccPassword,
   getAllInstitutions,
 } from './src/server/store';
-import { sendOtpEmail } from './src/server/email';
 import {
   storeEvidenceFile,
   getEvidenceFileBuffer,
@@ -62,7 +58,6 @@ async function startServer() {
       timestamp: new Date().toISOString(),
       platform: 'SafeReport',
       database: isMongoConnected() ? 'MongoDB (Connected)' : 'Active Memory Fallback',
-      resendConfigured: Boolean(process.env.RESEND_API_KEY),
     });
   });
 
@@ -72,92 +67,7 @@ async function startServer() {
   });
 
   // ==========================================
-  // 2. SURVIVOR EMAIL VERIFICATION (RESEND OTP)
-  // ==========================================
-  app.post('/api/auth/send-otp', async (req, res) => {
-    const { email } = req.body;
-
-    if (!email || typeof email !== 'string' || !email.includes('@') || !email.includes('.')) {
-      return res.status(400).json({ error: 'Please provide a valid email address.' });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // Check rate limit: maximum 5 requests per 5 minutes per email/IP
-    if (!checkRateLimit(`survivor_otp_${normalizedEmail}`, 5, 5 * 60 * 1000)) {
-      return res.status(429).json({ error: 'Too many verification code requests. Please wait a few minutes before trying again.' });
-    }
-
-    // Strict validation of server email delivery configuration
-    if (!process.env.RESEND_API_KEY) {
-      console.error('[Configuration Error] RESEND_API_KEY environment variable is not configured.');
-      return res.status(500).json({
-        error: 'Server configuration error: RESEND_API_KEY is not configured on this server. Email verification cannot proceed.',
-      });
-    }
-
-    try {
-      // 1. Generate cryptographically secure random 6-digit numeric OTP
-      const otp = generateOtp();
-
-      // 2. Hash and store OTP in MongoDB with 10-minute expiration and single-use constraint
-      await saveOtp(normalizedEmail, otp, 'survivor', { ip: req.ip }, 10);
-
-      // 3. Send actual OTP via Resend Node SDK (Never logs or returns the OTP)
-      await sendOtpEmail(normalizedEmail, otp);
-
-      // 4. Return strictly a generic confirmation response
-      return res.json({
-        success: true,
-        message: 'If the email can receive messages, a verification code has been sent.',
-      });
-    } catch (err: any) {
-      console.error('[Send OTP Error]', err.message || err);
-      return res.status(500).json({
-        error: err.message || 'Failed to dispatch verification code. Please try again.',
-      });
-    }
-  });
-
-  app.post('/api/auth/verify-otp', async (req, res) => {
-    const { email, otp } = req.body;
-
-    if (!email || !otp) {
-      return res.status(400).json({ error: 'Both email and verification code are required.' });
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
-    const cleanOtp = String(otp).trim();
-
-    // Verify submitted OTP against hashed record in MongoDB / store
-    const result = await verifyOtp(normalizedEmail, cleanOtp, 'survivor');
-
-    if (!result.valid) {
-      return res.status(400).json({ error: result.error || 'Invalid or expired verification code.' });
-    }
-
-    // Issue verified server-side submission session (valid for 2 hours)
-    const verificationToken = createSession(
-      {
-        userId: 'survivor_' + crypto.randomBytes(8).toString('hex'),
-        email: normalizedEmail,
-        role: 'SURVIVOR',
-        institutionId: '',
-        institutionName: '',
-        name: 'Verified Survivor',
-      },
-      2
-    );
-
-    return res.json({
-      success: true,
-      message: 'Email address verified successfully.',
-      verificationToken,
-    });
-  });
-
-  // ==========================================
-  // 3. ICC OFFICER AUTHENTICATION (DEMO: EMAIL + PASSWORD ONLY)
+  // 2. ICC OFFICER AUTHENTICATION (DEMO: EMAIL + PASSWORD ONLY)
   // ==========================================
   app.post('/api/icc/login', async (req, res) => {
     const { email, password } = req.body;
@@ -404,6 +314,10 @@ async function startServer() {
       // Decode base64 data
       const base64Clean = fileData.replace(/^data:([A-Za-z-+/]+);base64,/, '');
       const buffer = Buffer.from(base64Clean, 'base64');
+      console.log(`[Evidence] Upload received ${fileName} (${safeMime}), bytes=${buffer.length}.`);
+      if (buffer.length === 0) {
+        return res.status(400).json({ error: 'Evidence file is empty.' });
+      }
 
       if (buffer.length > MAX_FILE_SIZE_BYTES) {
         return res.status(400).json({ error: 'File size exceeds maximum allowed limit of 25MB.' });
@@ -511,10 +425,12 @@ async function startServer() {
     // Retrieve file from disk storage or fallback to base64 dataUrl
     const storageKey = (evidence as any).storageKey || evidence.id;
     const buffer = await getEvidenceFileBuffer(storageKey);
+    const contentDisposition = req.query.download === '1' ? 'attachment' : 'inline';
 
     if (buffer) {
       res.setHeader('Content-Type', evidence.mimeType || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `inline; filename="${sanitizeFilename(evidence.fileName)}"`);
+      res.setHeader('Content-Disposition', `${contentDisposition}; filename="${sanitizeFilename(evidence.fileName)}"`);
+      res.setHeader('Content-Length', buffer.length.toString());
       res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
       return res.send(buffer);
     }
@@ -522,8 +438,10 @@ async function startServer() {
     if (evidence.dataUrl) {
       const base64Clean = evidence.dataUrl.replace(/^data:([A-Za-z-+/]+);base64,/, '');
       const buf = Buffer.from(base64Clean, 'base64');
+      console.log(`[Evidence] Read legacy embedded evidence ${evidence.id}, bytes=${buf.length}.`);
       res.setHeader('Content-Type', evidence.mimeType || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `inline; filename="${sanitizeFilename(evidence.fileName)}"`);
+      res.setHeader('Content-Disposition', `${contentDisposition}; filename="${sanitizeFilename(evidence.fileName)}"`);
+      res.setHeader('Content-Length', buf.length.toString());
       return res.send(buf);
     }
 
@@ -531,27 +449,14 @@ async function startServer() {
   });
 
   // ==========================================
-  // 6. SURVIVOR REPORT SUBMISSION (STRICT VERIFICATION ENFORCEMENT)
+  // 5. SURVIVOR REPORT SUBMISSION
   // ==========================================
   app.post('/api/reports', async (req, res) => {
-    // ENFORCE VERIFIED SURVIVOR SESSION
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(403).json({
-        error: 'Forbidden: Email verification session required before submitting a report.',
-      });
-    }
-
-    const session = getSession(authHeader);
-    if (!session || session.role !== 'SURVIVOR') {
-      return res.status(403).json({
-        error: 'Forbidden: Invalid or expired email verification session. Please verify your email via OTP before submitting.',
-      });
-    }
-
     const payload = req.body;
-    if (!payload.narrative || !payload.category) {
-      return res.status(400).json({ error: 'Category and narrative details are required to submit an incident report.' });
+    const reporterEmail = typeof payload.email === 'string' ? payload.email.trim() : '';
+    console.log('[Reports] Received report submission request.');
+    if (!payload.narrative || !payload.category || !reporterEmail) {
+      return res.status(400).json({ error: 'Email, category, and narrative details are required to submit an incident report.' });
     }
 
     // Determine Institution strictly through resolution
@@ -566,6 +471,10 @@ async function startServer() {
           try {
             const base64Clean = ev.dataUrl.replace(/^data:([A-Za-z-+/]+);base64,/, '');
             const buffer = Buffer.from(base64Clean, 'base64');
+            console.log(`[Evidence] Report evidence received ${ev.fileName} (${ev.mimeType || 'application/octet-stream'}), bytes=${buffer.length}.`);
+            if (buffer.length === 0) {
+              throw new Error('Evidence file is empty before storage.');
+            }
             const saved = await storeEvidenceFile(ev.id || `ev-${Date.now()}`, ev.fileName, ev.mimeType || 'application/octet-stream', buffer);
             processedEvidence.push({
               id: saved.id,
@@ -577,12 +486,11 @@ async function startServer() {
               encryptedHash: saved.encryptedHash,
               mimeType: saved.mimeType,
               storageKey: saved.storageKey,
-              dataUrl: ev.dataUrl,
               description: ev.description,
             });
           } catch (storageErr) {
             console.error('[Evidence storage warning]', storageErr);
-            processedEvidence.push(ev);
+            throw storageErr;
           }
         } else {
           processedEvidence.push(ev);
@@ -602,14 +510,14 @@ async function startServer() {
       organizationType: payload.organizationType || 'college',
       organizationName: resolvedInstitution.name,
       institutionId: resolvedInstitution.id,
-      isVerifiedInstitutionalUser: true,
-      institutionDomain: session.email.split('@')[1] ? `@${session.email.split('@')[1]}` : '@crestview-demo.org',
-      reporterEmail: session.email, // Kept strictly on server
+      isVerifiedInstitutionalUser: false,
+      institutionDomain: undefined,
+      reporterEmail,
       reporterName: payload.reporterName,
       reporterPhone: payload.reporterPhone,
       reporterContactEncrypted:
         payload.mode === 'IDENTIFIED'
-          ? `${payload.reporterName || 'Identified'} (${session.email}${payload.reporterPhone ? `, ${payload.reporterPhone}` : ''})`
+          ? `${payload.reporterName || 'Identified'} (${reporterEmail}${payload.reporterPhone ? `, ${payload.reporterPhone}` : ''})`
           : payload.mode === 'CONFIDENTIAL'
           ? 'Escrow Sealed (PoSH Statutory Protection)'
           : undefined,
@@ -644,7 +552,7 @@ async function startServer() {
           id: `tm-${Date.now()}-1`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           title: `Report Submitted (${payload.mode || 'ANONYMOUS'})`,
-          description: `Cryptographic passkey generated. Email verification confirmed.`,
+          description: `Cryptographic passkey generated.`,
           actor: 'reporter',
           badgeType: 'info',
         },

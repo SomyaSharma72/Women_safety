@@ -63,8 +63,12 @@ export default function App() {
   // Global ESC key listener for Quick Exit
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsQuickExitOpen(true);
+      if (e.key !== 'Escape' || e.repeat) return;
+
+      e.preventDefault();
+      const weatherWindow = window.open('https://weather.com/', '_blank', 'noopener,noreferrer');
+      if (!weatherWindow) {
+        window.location.assign('https://weather.com/');
       }
     };
     window.addEventListener('keydown', handleKeyDown);

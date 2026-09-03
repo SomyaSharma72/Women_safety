@@ -42,10 +42,7 @@ import {
 import {
   GraduationCap,
   Briefcase,
-  Mail,
   RefreshCw,
-  BadgeAlert,
-  BadgeCheck,
 } from 'lucide-react';
 import {
   generateCaseNumber,
@@ -55,12 +52,7 @@ import {
   formatFileSize,
 } from '../../lib/utils';
 import {
-  sendSurvivorOtp,
-  verifySurvivorOtp,
   submitReport,
-  getSurvivorToken,
-  getSurvivorEmail,
-  clearSurvivorSession,
 } from '../../lib/api';
 
 interface ReportWizardProps {
@@ -81,16 +73,7 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
   const [mode, setMode] = useState<ReportingMode>(initialMode);
   const [organizationType, setOrganizationType] = useState<OrganizationType>('college');
   const [organizationName, setOrganizationName] = useState<string>(VERIFIED_COLLEGES[0]);
-
-  // Survivor Email OTP Verification State
-  const [survivorEmail, setSurvivorEmail] = useState<string>(getSurvivorEmail() || '');
-  const [isEmailVerified, setIsEmailVerified] = useState<boolean>(!!getSurvivorToken());
-  const [otpInput, setOtpInput] = useState<string>('');
-  const [isSendingOtp, setIsSendingOtp] = useState<boolean>(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState<boolean>(false);
-  const [otpSent, setOtpSent] = useState<boolean>(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [authSuccessMessage, setAuthSuccessMessage] = useState<string | null>(null);
+  const [reporterEmail, setReporterEmail] = useState('');
 
   // Identified mode contact details
   const [reporterName, setReporterName] = useState('');
@@ -139,56 +122,6 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Survivor OTP Handlers
-  const handleSendSurvivorOtp = async () => {
-    if (!survivorEmail || !survivorEmail.includes('@') || !survivorEmail.includes('.')) {
-      setAuthError('Please enter a valid institutional or personal email address.');
-      return;
-    }
-    setAuthError(null);
-    setAuthSuccessMessage(null);
-    setIsSendingOtp(true);
-
-    try {
-      const res = await sendSurvivorOtp(survivorEmail);
-      setOtpSent(true);
-      setAuthSuccessMessage(res.message || `Verification code sent to ${survivorEmail}`);
-    } catch (err: any) {
-      setAuthError(err.message || 'Failed to dispatch verification code.');
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
-
-  const handleVerifySurvivorOtp = async () => {
-    if (!otpInput || otpInput.trim().length < 6) {
-      setAuthError('Please enter the 6-digit verification code.');
-      return;
-    }
-    setAuthError(null);
-    setIsVerifyingOtp(true);
-
-    try {
-      await verifySurvivorOtp(survivorEmail, otpInput.trim());
-      setIsEmailVerified(true);
-      setOtpSent(false);
-      setAuthSuccessMessage('Email verified successfully. SafeReport session established.');
-    } catch (err: any) {
-      setAuthError(err.message || 'Invalid or expired verification code.');
-    } finally {
-      setIsVerifyingOtp(false);
-    }
-  };
-
-  const handleResetVerification = () => {
-    clearSurvivorSession();
-    setIsEmailVerified(false);
-    setOtpSent(false);
-    setOtpInput('');
-    setAuthSuccessMessage(null);
-    setAuthError(null);
-  };
-
   // AI Structuring simulation
   const handleAiStructure = () => {
     setIsAiStructuring(true);
@@ -206,7 +139,6 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
   const processFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
     setIsUploadingFile(true);
-    setAuthError(null);
 
     const newItems: EvidenceItem[] = [];
 
@@ -260,11 +192,6 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
 
   // Final Submit
   const handleSubmitReport = async () => {
-    if (!isEmailVerified) {
-      setSubmitError('Email verification required. Please verify your email before submitting.');
-      return;
-    }
-
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -277,6 +204,7 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
       mode: mode,
       organizationType: organizationType,
       organizationName: organizationName,
+      email: reporterEmail,
       reporterName: mode === 'IDENTIFIED' ? reporterName : undefined,
       reporterPhone: mode === 'IDENTIFIED' ? reporterPhone : undefined,
       category: category,
@@ -320,20 +248,20 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
             id: `tm-${Date.now()}-1`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             title: `Report Submitted (${mode} Mode)`,
-            description: `Cryptographic passkey generated. Email verification confirmed.`,
+            description: `Cryptographic passkey generated.`,
             actor: 'reporter' as const,
             badgeType: 'info' as const,
           },
         ],
         checkIns: [],
-        isVerifiedInstitutionalUser: true,
+        isVerifiedInstitutionalUser: false,
       };
 
       setGeneratedReport(savedReport);
       onSubmitSuccess(savedReport);
       setCurrentStep(5);
     } catch (err: any) {
-      setSubmitError(err.message || 'Failed to submit report. Please check your verification status.');
+      setSubmitError(err.message || 'Failed to submit report.');
     } finally {
       setIsSubmitting(false);
     }
@@ -436,7 +364,7 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
                 </div>
                 <h4 className="font-bold text-slate-900 text-base font-display-styled">Anonymous</h4>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Identity protected from reviewers. Only the incident narrative and location are logged for pattern correlation.
+                  Your identity is hidden from general reviewers. Authorized ICC officers can access your contact information when needed for case handling.
                 </p>
               </div>
               <div className="mt-4 pt-3 border-t border-rose-200 text-[11px] text-[#94204D] font-bold">
@@ -501,146 +429,33 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
             </div>
           </div>
 
-          {/* Mandatory Survivor Email Verification Box */}
-          <div className="p-5 rounded-[24px] bg-[#FFF8F9] border border-rose-200/90 space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  isEmailVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-[#94204D]'
-                }`}>
-                  {isEmailVerified ? <BadgeCheck className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-900 text-sm font-display-styled flex items-center gap-2">
-                    <span>Mandatory Email Ownership Verification</span>
-                    {isEmailVerified && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wide">
-                        Verified &amp; Protected
-                      </span>
-                    )}
-                  </h4>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    SafeReport requires verified email ownership before report submission to protect the vault against spam.
-                    {mode === 'ANONYMOUS' && (
-                      <strong className="block text-[#94204D] mt-0.5">
-                        ✓ In Anonymous mode, your email is permanently sealed at the server layer and NEVER disclosed to ICC reviewers.
-                      </strong>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {isEmailVerified && (
-                <button
-                  type="button"
-                  onClick={handleResetVerification}
-                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 underline cursor-pointer"
-                >
-                  Change Email
-                </button>
-              )}
-            </div>
-
-            {authError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
-                <span>{authError}</span>
-              </div>
-            )}
-
-            {authSuccessMessage && (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span>{authSuccessMessage}</span>
-              </div>
-            )}
-
-            {!isEmailVerified ? (
-              <div className="space-y-3 pt-1">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="relative flex-1">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      value={survivorEmail}
-                      onChange={(e) => {
-                        setSurvivorEmail(e.target.value);
-                        setOtpSent(false);
-                      }}
-                      placeholder="e.g. student@cit.edu or name@gmail.com"
-                      className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 bg-white outline-none focus:border-[#94204D] focus:ring-1 focus:ring-[#94204D]"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleSendSurvivorOtp}
-                    disabled={isSendingOtp || !survivorEmail}
-                    className="px-4 py-2.5 rounded-xl bg-[#94204D] hover:bg-[#7D1B41] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  >
-                    {isSendingOtp ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Sending OTP...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>{otpSent ? 'Resend OTP' : 'Send Verification OTP'}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {otpSent && (
-                  <div className="p-3.5 rounded-2xl bg-white border border-rose-200 shadow-2xs space-y-2 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-800">
-                        Enter 6-Digit Verification Code sent to {survivorEmail}:
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        maxLength={6}
-                        value={otpInput}
-                        onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                        placeholder="••••••"
-                        className="flex-1 text-center font-mono text-base tracking-[0.3em] font-bold py-2 rounded-xl border border-slate-300 bg-slate-50 outline-none focus:border-[#94204D]"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={handleVerifySurvivorOtp}
-                        disabled={isVerifyingOtp || otpInput.length < 6}
-                        className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
-                      >
-                        {isVerifyingOtp ? 'Verifying...' : 'Verify Code'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center justify-between text-xs text-emerald-800 bg-emerald-50/80 p-3 rounded-xl border border-emerald-200">
-                <span className="font-semibold flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" />
-                  Verified Survivor Account: <strong>{survivorEmail}</strong>
-                </span>
-                <span className="text-[11px] text-emerald-700 font-medium">Session Active (4h)</span>
-              </div>
-            )}
-          </div>
-
           {/* Institutional Trust Assurance Box */}
           <div className="p-4 rounded-[20px] bg-[#FFF8F9] border border-rose-200/80 text-xs text-slate-700 flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-[#94204D] shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-slate-900">System-Level Verification Safeguard:</span>
+              <span className="font-bold text-slate-900">Contact Information &amp; Privacy:</span>
               <p className="mt-0.5 text-slate-600">
-                SafeReport checks institutional validity (e.g. <code>@university.edu</code>) at the server layer to discourage spam, but in <strong>Anonymous</strong> mode, the reviewer sees absolutely zero identifying tokens.
+                Your email is collected for case follow-up. No OTP or verification email will be sent. Access to identifying information is controlled through the authorized ICC portal.
               </p>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-700" htmlFor="reporter-email">
+              Email Address
+            </label>
+            <input
+              id="reporter-email"
+              type="email"
+              value={reporterEmail}
+              onChange={(e) => setReporterEmail(e.target.value)}
+              placeholder="name@example.com"
+              required
+              className="w-full text-sm p-2.5 rounded-xl border border-slate-300 bg-white"
+            />
+            <p className="text-[11px] text-slate-500">
+              No verification email or code will be sent. Authorized ICC officers can access this contact information for case handling.
+            </p>
           </div>
 
           {/* Extra inputs for Identified Mode */}
@@ -1244,81 +1059,6 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
             )}
           </div>
 
-          {/* Verification Status Banner before Final Submission */}
-          {isEmailVerified ? (
-            <div className="p-4 rounded-[20px] bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-3">
-              <BadgeCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold">Verified Survivor Session: {survivorEmail}</span>
-                <p className="text-emerald-700 mt-0.5">
-                  Email ownership confirmed. Ready to submit to institutional vault.
-                  {mode === 'ANONYMOUS' && ' (Review committee will NOT see this email address).'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="p-5 rounded-[24px] bg-amber-50 border border-amber-300 space-y-3">
-              <div className="flex items-start gap-3">
-                <BadgeAlert className="w-6 h-6 text-amber-700 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-bold text-amber-900 text-sm font-display-styled">
-                    Email Verification Required Before Submission
-                  </h4>
-                  <p className="text-xs text-amber-800 mt-0.5">
-                    SafeReport requires verified email ownership before any report can be sealed into the vault.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
-                <input
-                  type="email"
-                  value={survivorEmail}
-                  onChange={(e) => {
-                    setSurvivorEmail(e.target.value);
-                    setOtpSent(false);
-                  }}
-                  placeholder="Enter your email to verify"
-                  className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-amber-300 bg-white outline-none focus:border-[#94204D]"
-                />
-                <button
-                  type="button"
-                  onClick={handleSendSurvivorOtp}
-                  disabled={isSendingOtp || !survivorEmail}
-                  className="px-4 py-2 rounded-xl bg-[#94204D] hover:bg-[#7D1B41] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  {isSendingOtp ? 'Sending...' : 'Send Verification OTP'}
-                </button>
-              </div>
-
-              {otpSent && (
-                <div className="p-3 rounded-xl bg-white border border-amber-200 flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold text-slate-800">OTP Code:</span>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="••••••"
-                    className="w-28 text-center font-mono text-sm font-bold py-1.5 rounded-lg border border-slate-300 bg-slate-50 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleVerifySurvivorOtp}
-                    disabled={isVerifyingOtp || otpInput.length < 6}
-                    className="px-4 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer"
-                  >
-                    {isVerifyingOtp ? 'Verifying...' : 'Verify'}
-                  </button>
-                </div>
-              )}
-
-              {authError && (
-                <p className="text-xs text-red-600 font-medium">{authError}</p>
-              )}
-            </div>
-          )}
-
           {submitError && (
             <div className="p-4 rounded-[20px] bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 shrink-0 text-red-600" />
@@ -1351,9 +1091,9 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
 
             <button
               onClick={handleSubmitReport}
-              disabled={!isEmailVerified || isSubmitting}
+              disabled={isSubmitting}
               className={`inline-flex items-center gap-2 font-bold text-sm px-8 py-3.5 rounded-2xl shadow-xl transition-all cursor-pointer ${
-                !isEmailVerified || isSubmitting
+                isSubmitting
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
                   : 'bg-[#94204D] hover:bg-[#7D1B41] text-white shadow-[#94204D]/30 hover:scale-[1.02]'
               }`}

@@ -44,6 +44,7 @@ export const Footer: React.FC<FooterProps> = ({
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>Quick Escape (ESC)</span>
               </button>
+              <p className="mt-2 text-[11px] text-slate-500">Press Esc for Quick Exit</p>
             </div>
           </div>
 

@@ -207,7 +207,7 @@ export function resolveInstitutionId(nameOrDomain?: string): { id: string; name:
 // Internal Backend Report with protected fields
 export interface StoredIncidentReport extends IncidentReport {
   institutionId: string;
-  reporterEmail: string; // The verified email - kept strictly on backend
+  reporterEmail: string;
   reporterPhone?: string;
   reporterName?: string;
 }
@@ -217,9 +217,7 @@ const inMemoryReportsDatabase: StoredIncidentReport[] = [];
 
 /**
  * Sanitize Report for ICC view according to privacy mode
- * CRITICAL: ANONYMOUS must NOT disclose email, name, phone.
- * CONFIDENTIAL only discloses escrow/permitted fields.
- * IDENTIFIED discloses submitted contact.
+ * ICC officers are authorized to access reporter contact information for every mode.
  */
 export function sanitizeReportForIcc(report: StoredIncidentReport): IncidentReport {
   const { reporterEmail, reporterPhone, reporterName, ...baseReport } = report;
@@ -227,6 +225,7 @@ export function sanitizeReportForIcc(report: StoredIncidentReport): IncidentRepo
   if (report.mode === 'ANONYMOUS') {
     return {
       ...baseReport,
+      reporterEmail,
       reporterContactEncrypted: undefined,
     };
   }
@@ -234,6 +233,7 @@ export function sanitizeReportForIcc(report: StoredIncidentReport): IncidentRepo
   if (report.mode === 'CONFIDENTIAL') {
     return {
       ...baseReport,
+      reporterEmail,
       reporterContactEncrypted: report.reporterContactEncrypted || 'Escrow Sealed (PoSH Statutory Protection)',
     };
   }
@@ -241,6 +241,7 @@ export function sanitizeReportForIcc(report: StoredIncidentReport): IncidentRepo
   // IDENTIFIED
   return {
     ...baseReport,
+    reporterEmail,
     reporterContactEncrypted: reporterName
       ? `${reporterName} (${reporterEmail}${reporterPhone ? `, ${reporterPhone}` : ''})`
       : reporterEmail,
@@ -314,6 +315,7 @@ export async function getReportsForInstitution(institutionId: string): Promise<S
     try {
       const query = institutionId === '*' ? {} : { institutionId };
       const docs = await IncidentReportModel.find(query).sort({ createdAt: -1 }).lean();
+      console.log(`[MongoDB] Fetched ${docs.length} report(s) for institution ${institutionId}.`);
       return (docs as unknown as StoredIncidentReport[]) || [];
     } catch (err) {
       console.error('[MongoDB Query Reports by Institution Error]', err);
@@ -338,6 +340,7 @@ export async function getReportByCaseNumber(caseNumber: string): Promise<StoredI
         caseNumber: { $regex: new RegExp(`^${cleanCaseNum}$`, 'i') },
       }).lean();
       if (doc) {
+        console.log(`[MongoDB] Fetched report ${cleanCaseNum}.`);
         return doc as unknown as StoredIncidentReport;
       }
     } catch (err) {
@@ -353,16 +356,16 @@ export async function getReportByCaseNumber(caseNumber: string): Promise<StoredI
  * Database mutation: Save new Incident Report
  */
 export async function saveNewReport(report: StoredIncidentReport): Promise<StoredIncidentReport> {
-  // Update in-memory fallback
-  inMemoryReportsDatabase.unshift(report);
+  if (!isMongoConnected()) {
+    throw new Error('MongoDB is not connected. Reports cannot be persisted.');
+  }
 
-  if (isMongoConnected()) {
-    try {
-      // 1. Create document in IncidentReportModel
-      await IncidentReportModel.create(report);
+  try {
+    const savedReport = await IncidentReportModel.create(report);
+    console.log(`[MongoDB] Incident Report ${report.caseNumber} saved (id=${report.id}).`);
 
-      // 2. Create primary Timeline event in TimelineEventModel
-      if (report.timeline && report.timeline.length > 0) {
+    if (report.timeline && report.timeline.length > 0) {
+      try {
         for (const evt of report.timeline) {
           await TimelineEventModel.create({
             caseNumber: report.caseNumber,
@@ -374,22 +377,27 @@ export async function saveNewReport(report: StoredIncidentReport): Promise<Store
             metadata: { reportId: report.id, mode: report.mode },
           });
         }
+      } catch (err) {
+        console.error(`[MongoDB] Timeline persistence warning for case ${report.caseNumber}:`, err);
       }
+    }
 
-      // 3. Increment survivor report count
-      if (report.reporterEmail) {
+    if (report.reporterEmail) {
+      try {
         await SurvivorIdentityModel.findOneAndUpdate(
           { email: report.reporterEmail.toLowerCase().trim() },
-          { $inc: { reportsCount: 1 }, lastVerifiedAt: new Date() }
+          { $inc: { reportsCount: 1 } }
         );
+      } catch (err) {
+        console.error(`[MongoDB] Survivor count warning for case ${report.caseNumber}:`, err);
       }
-      console.log(`[MongoDB] Incident Report ${report.caseNumber} persisted to database.`);
-    } catch (err) {
-      console.error('[MongoDB Save Report Error]', err);
     }
-  }
 
-  return report;
+    return savedReport.toObject() as unknown as StoredIncidentReport;
+  } catch (err) {
+    console.error(`[MongoDB] Incident Report ${report.caseNumber} save failed:`, err);
+    throw new Error('Failed to persist incident report to MongoDB.');
+  }
 }
 
 /**

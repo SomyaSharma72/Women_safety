@@ -33,6 +33,7 @@ export interface EvidenceItem {
   uploadedAt: string;
   metadataStripped: boolean;
   encryptedHash: string;
+  storageKey?: string;
   previewUrl?: string;
   dataUrl?: string;
   mimeType?: string;
@@ -69,7 +70,8 @@ export interface IncidentReport {
   organizationType: OrganizationType; // 'college' | 'company'
   organizationName?: string; // e.g. "Crestview University" or "NovaTech Solutions"
   isVerifiedInstitutionalUser: boolean;
-  institutionDomain?: string; // e.g. "@campus.edu" (verified at system level, hidden from reviewer in Anonymous mode)
+  institutionDomain?: string;
+  reporterEmail?: string;
   reporterContactEncrypted?: string; // Only decipherable under formal subpoena / legal committee in Confidential mode
 
   // Incident specifics

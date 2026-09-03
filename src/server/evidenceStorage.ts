@@ -77,8 +77,18 @@ export async function storeEvidenceFile(
   // Compute SHA-256 integrity hash
   const hash = crypto.createHash('sha256').update(buffer).digest('hex');
 
+  console.log(`[Evidence] Writing ${safeName} (${mimeType}), bytes=${buffer.length}, storageKey=${storageKey}.`);
+  if (buffer.length === 0) {
+    throw new Error('Evidence file is empty before storage.');
+  }
+
   // Write file to disk
   await fs.promises.writeFile(filePath, buffer);
+  const storedStats = await fs.promises.stat(filePath);
+  console.log(`[Evidence] Stored ${storageKey}, bytes=${storedStats.size}.`);
+  if (storedStats.size !== buffer.length) {
+    throw new Error('Evidence file size changed during storage.');
+  }
 
   const formattedSize =
     buffer.length > 1024 * 1024
@@ -103,7 +113,10 @@ export async function getEvidenceFileBuffer(storageKey: string): Promise<Buffer 
   const safeKey = path.basename(storageKey);
   const filePath = path.join(UPLOADS_DIR, safeKey);
   if (!fs.existsSync(filePath)) {
+    console.warn(`[Evidence] File not found for storageKey=${safeKey}.`);
     return null;
   }
-  return fs.promises.readFile(filePath);
+  const buffer = await fs.promises.readFile(filePath);
+  console.log(`[Evidence] Read ${safeKey}, bytes=${buffer.length}.`);
+  return buffer;
 }
