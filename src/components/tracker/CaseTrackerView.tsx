@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { IncidentReport, RetaliationCheckIn } from '../../types';
 import { formatDate } from '../../lib/utils';
+import { trackCase } from '../../lib/api';
 
 interface CaseTrackerViewProps {
   reports: IncidentReport[];
@@ -28,13 +29,15 @@ interface CaseTrackerViewProps {
 
 export const CaseTrackerView: React.FC<CaseTrackerViewProps> = ({
   reports,
-  initialCaseNumber = 'R-2841',
+  initialCaseNumber = '',
   onUpdateReport,
 }) => {
   const [searchCaseId, setSearchCaseId] = useState(initialCaseNumber);
   const [searchPasskey, setSearchPasskey] = useState('');
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [selectedCase, setSelectedCase] = useState<IncidentReport | null>(
-    reports.find((r) => r.caseNumber === initialCaseNumber) || reports[0] || null
+    initialCaseNumber ? reports.find((r) => r.caseNumber === initialCaseNumber) || null : reports[0] || null
   );
 
   // Retaliation Check-in response state
@@ -48,18 +51,41 @@ export const CaseTrackerView: React.FC<CaseTrackerViewProps> = ({
   const [newFollowUpNote, setNewFollowUpNote] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSearchError(null);
     const query = searchCaseId.trim().toUpperCase();
-    const found = reports.find(
+    if (!query) {
+      setSearchError('Please enter a case number.');
+      return;
+    }
+
+    // 1. Search in local memory
+    const foundLocal = reports.find(
       (r) => r.caseNumber.toUpperCase() === query || r.caseNumber.toUpperCase() === `R-${query}`
     );
-    if (found) {
-      setSelectedCase(found);
+    if (foundLocal) {
+      setSelectedCase(foundLocal);
       setCheckInSubmitted(false);
       setCheckInResponse(null);
-    } else {
-      alert(`Case "${query}" not found. Try typing R-2841, R-021, R-087 or R-143.`);
+      return;
+    }
+
+    // 2. Fetch from backend server
+    setIsSearching(true);
+    try {
+      const res = await trackCase(query);
+      if (res && res.caseData) {
+        setSelectedCase(res.caseData);
+        setCheckInSubmitted(false);
+        setCheckInResponse(null);
+      } else {
+        setSearchError(`Case "${query}" was not found. Please double-check your case reference number.`);
+      }
+    } catch {
+      setSearchError(`Case "${query}" was not found on the secure registry.`);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -170,38 +196,47 @@ export const CaseTrackerView: React.FC<CaseTrackerViewProps> = ({
               type="text"
               value={searchCaseId}
               onChange={(e) => setSearchCaseId(e.target.value)}
-              placeholder="Enter Case # (e.g. R-2841, R-021)"
+              placeholder="Enter Case # (e.g. R-4821)"
               className="w-full pl-10 pr-4 py-3 text-sm rounded-2xl border border-rose-200 bg-[#FFF8F9] focus:bg-white focus:ring-2 focus:ring-[#94204D] focus:outline-none"
             />
           </div>
 
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-2 bg-[#94204D] hover:bg-[#7D1B41] text-white font-semibold text-sm px-6 py-3 rounded-2xl shadow-xs transition cursor-pointer"
+            disabled={isSearching}
+            className="inline-flex items-center justify-center gap-2 bg-[#94204D] hover:bg-[#7D1B41] text-white font-semibold text-sm px-6 py-3 rounded-2xl shadow-xs transition cursor-pointer disabled:opacity-50"
           >
-            <span>Search Case</span>
+            <span>{isSearching ? 'Searching...' : 'Search Case'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        {/* Quick Demo Preloads */}
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-slate-500">Quick Test Cases:</span>
-          {reports.map((r) => (
-            <button
-              key={r.caseNumber}
-              type="button"
-              onClick={() => handleSelectQuickCase(r.caseNumber)}
-              className={`px-3 py-1 rounded-xl border font-mono font-medium transition cursor-pointer ${
-                selectedCase?.caseNumber === r.caseNumber
-                  ? 'bg-[#94204D] text-white border-[#94204D]'
-                  : 'bg-[#FDF0F3] hover:bg-[#FCECEF] text-[#94204D] border-[#FADCE2]'
-              }`}
-            >
-              #{r.caseNumber} ({r.mode})
-            </button>
-          ))}
-        </div>
+        {searchError && (
+          <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+            {searchError}
+          </div>
+        )}
+
+        {/* Quick Preloads if active reports exist */}
+        {reports.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-slate-500">Active Reports:</span>
+            {reports.map((r) => (
+              <button
+                key={r.caseNumber}
+                type="button"
+                onClick={() => handleSelectQuickCase(r.caseNumber)}
+                className={`px-3 py-1 rounded-xl border font-mono font-medium transition cursor-pointer ${
+                  selectedCase?.caseNumber === r.caseNumber
+                    ? 'bg-[#94204D] text-white border-[#94204D]'
+                    : 'bg-[#FDF0F3] hover:bg-[#FCECEF] text-[#94204D] border-[#FADCE2]'
+                }`}
+              >
+                #{r.caseNumber} ({r.mode})
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {selectedCase ? (

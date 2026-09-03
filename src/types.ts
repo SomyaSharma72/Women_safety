@@ -23,6 +23,8 @@ export type CaseStatus =
   | 'action_taken'
   | 'closed';
 
+export type OrganizationType = 'college' | 'company';
+
 export interface EvidenceItem {
   id: string;
   fileName: string;
@@ -32,6 +34,8 @@ export interface EvidenceItem {
   metadataStripped: boolean;
   encryptedHash: string;
   previewUrl?: string;
+  dataUrl?: string;
+  mimeType?: string;
   description?: string;
 }
 
@@ -62,6 +66,8 @@ export interface IncidentReport {
   
   // Privacy configuration
   mode: ReportingMode;
+  organizationType: OrganizationType; // 'college' | 'company'
+  organizationName?: string; // e.g. "Crestview University" or "NovaTech Solutions"
   isVerifiedInstitutionalUser: boolean;
   institutionDomain?: string; // e.g. "@campus.edu" (verified at system level, hidden from reviewer in Anonymous mode)
   reporterContactEncrypted?: string; // Only decipherable under formal subpoena / legal committee in Confidential mode
@@ -108,6 +114,8 @@ export interface IncidentReport {
   neutralEscalationTarget?: 'state_human_rights' | 'external_ombudsman' | 'independent_legal_counsel';
   
   assignedReviewerRole?: string;
+  severity?: 'critical' | 'high' | 'medium' | 'low';
+  patternFlagged?: boolean;
   timeline: TimelineEvent[];
   reviewerNotes?: {
     author: string;
@@ -120,10 +128,15 @@ export interface IncidentReport {
 export interface PatternSignal {
   id: string;
   title: string;
+  organizationType?: OrganizationType; // 'college' | 'company'
   confidenceScore: number; // 0 - 100 percentage of correlation
   locationCluster: string;
   department: string;
   timeSpan: string;
+  dateRange?: string;
+  reportCount?: number;
+  summary?: string;
+  correlatedReportIds?: string[];
   matchedReports: {
     caseNumber: string;
     date: string;
@@ -147,6 +160,34 @@ export interface PatternSignal {
   createdAt: string;
 }
 
+export interface InstitutionItem {
+  id: string;
+  name: string;
+  shortCode: string;
+  type: 'University' | 'College' | 'Polytechnic' | 'Medical / Health' | 'Corporate Campus' | 'Research Institute';
+  location: string;
+  iccStatus: 'Active Statutory ICC' | 'Independent Panel' | '24/7 Intake Board' | 'Compliance Certified';
+  activeCasesCount: number;
+  resolvedCasesCount: number;
+  designatedContact: {
+    name: string;
+    title: string;
+    role: string;
+    emailDomain: string;
+  };
+  reportingAvailability: {
+    anonymousAllowed: boolean;
+    passkeyVault: boolean;
+    retaliationShield: boolean;
+    neutralOmbudsman: boolean;
+  };
+  status: 'Verified SafeCampus' | 'Tier-1 Monitored' | 'Accredited Partner';
+  departmentsCount: number;
+  establishedDate: string;
+  description: string;
+  policyLinkText?: string;
+}
+
 export interface QuickStats {
   totalProtectedReports: number;
   anonymousRatio: number;
@@ -154,3 +195,23 @@ export interface QuickStats {
   averageResolutionDays: number;
   retaliationCheckInRate: number;
 }
+
+export interface IccUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'ICC_ADMIN' | 'SUPER_ADMIN';
+  institutionId: string;
+  institutionName: string;
+}
+
+export interface AuthSession {
+  token: string;
+  user: IccUser;
+}
+
+export interface SurvivorVerificationSession {
+  email: string;
+  verificationToken: string;
+}
+

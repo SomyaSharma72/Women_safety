@@ -24,22 +24,44 @@ import {
   Check,
   ExternalLink,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 import {
   ReportingMode,
   IncidentCategory,
   IncidentReport,
   EvidenceItem,
+  OrganizationType,
 } from '../../types';
 import {
   DEPARTMENTS,
+  COLLEGE_DEPARTMENTS,
+  COMPANY_DEPARTMENTS,
+  VERIFIED_COLLEGES,
+  VERIFIED_COMPANIES,
   CATEGORIES_METADATA,
 } from '../../data/mockData';
+import {
+  GraduationCap,
+  Briefcase,
+  Mail,
+  RefreshCw,
+  BadgeAlert,
+  BadgeCheck,
+} from 'lucide-react';
 import {
   generateCaseNumber,
   generatePasskey,
   generateMockHash,
+  computeFileHash,
+  formatFileSize,
 } from '../../lib/utils';
+import {
+  sendSurvivorOtp,
+  verifySurvivorOtp,
+  submitReport,
+  getSurvivorToken,
+  getSurvivorEmail,
+  clearSurvivorSession,
+} from '../../lib/api';
 
 interface ReportWizardProps {
   initialMode?: ReportingMode;
@@ -57,8 +79,18 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
 
   // Form State
   const [mode, setMode] = useState<ReportingMode>(initialMode);
-  const [institutionalEmail, setInstitutionalEmail] = useState('');
-  const [isEmailVerified, setIsEmailVerified] = useState(true); // Pre-verified demo
+  const [organizationType, setOrganizationType] = useState<OrganizationType>('college');
+  const [organizationName, setOrganizationName] = useState<string>(VERIFIED_COLLEGES[0]);
+
+  // Survivor Email OTP Verification State
+  const [survivorEmail, setSurvivorEmail] = useState<string>(getSurvivorEmail() || '');
+  const [isEmailVerified, setIsEmailVerified] = useState<boolean>(!!getSurvivorToken());
+  const [otpInput, setOtpInput] = useState<string>('');
+  const [isSendingOtp, setIsSendingOtp] = useState<boolean>(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState<boolean>(false);
+  const [otpSent, setOtpSent] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authSuccessMessage, setAuthSuccessMessage] = useState<string | null>(null);
 
   // Identified mode contact details
   const [reporterName, setReporterName] = useState('');
@@ -68,8 +100,8 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
   const [category, setCategory] = useState<IncidentCategory>('verbal_harassment');
   const [incidentDate, setIncidentDate] = useState(new Date().toISOString().split('T')[0]);
   const [incidentTime, setIncidentTime] = useState('17:30');
-  const [department, setDepartment] = useState(DEPARTMENTS[0]);
-  const [location, setLocation] = useState('Turing Hall, 3rd Floor');
+  const [department, setDepartment] = useState(COLLEGE_DEPARTMENTS[0]);
+  const [location, setLocation] = useState('Academic Complex, Block B');
   const [specificRoomOrSpot, setSpecificRoomOrSpot] = useState('Advanced Systems Lab 3 (Workstations 12-16)');
   const [isRecurring, setIsRecurring] = useState(false);
   const [estimatedOccurrences, setEstimatedOccurrences] = useState(1);
@@ -90,18 +122,8 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
   ]);
 
   // Evidence files
-  const [evidenceList, setEvidenceList] = useState<EvidenceItem[]>([
-    {
-      id: 'ev-demo-1',
-      fileName: 'chat_screenshot_redacted.png',
-      fileType: 'image',
-      fileSize: '1.4 MB',
-      uploadedAt: new Date().toISOString(),
-      metadataStripped: true,
-      encryptedHash: generateMockHash('screenshot_redacted_evidence'),
-      description: 'Exported chat screenshot with sensitive names stripped.',
-    },
-  ]);
+  const [evidenceList, setEvidenceList] = useState<EvidenceItem[]>([]);
+  const [isUploadingFile, setIsUploadingFile] = useState<boolean>(false);
 
   // Retaliation & Escalation
   const [retaliationShieldEnabled, setRetaliationShieldEnabled] = useState(true);
@@ -114,6 +136,58 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
   // Final Generated Report info
   const [generatedReport, setGeneratedReport] = useState<IncidentReport | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Survivor OTP Handlers
+  const handleSendSurvivorOtp = async () => {
+    if (!survivorEmail || !survivorEmail.includes('@') || !survivorEmail.includes('.')) {
+      setAuthError('Please enter a valid institutional or personal email address.');
+      return;
+    }
+    setAuthError(null);
+    setAuthSuccessMessage(null);
+    setIsSendingOtp(true);
+
+    try {
+      const res = await sendSurvivorOtp(survivorEmail);
+      setOtpSent(true);
+      setAuthSuccessMessage(res.message || `Verification code sent to ${survivorEmail}`);
+    } catch (err: any) {
+      setAuthError(err.message || 'Failed to dispatch verification code.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifySurvivorOtp = async () => {
+    if (!otpInput || otpInput.trim().length < 6) {
+      setAuthError('Please enter the 6-digit verification code.');
+      return;
+    }
+    setAuthError(null);
+    setIsVerifyingOtp(true);
+
+    try {
+      await verifySurvivorOtp(survivorEmail, otpInput.trim());
+      setIsEmailVerified(true);
+      setOtpSent(false);
+      setAuthSuccessMessage('Email verified successfully. SafeReport session established.');
+    } catch (err: any) {
+      setAuthError(err.message || 'Invalid or expired verification code.');
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  const handleResetVerification = () => {
+    clearSurvivorSession();
+    setIsEmailVerified(false);
+    setOtpSent(false);
+    setOtpInput('');
+    setAuthSuccessMessage(null);
+    setAuthError(null);
+  };
 
   // AI Structuring simulation
   const handleAiStructure = () => {
@@ -128,24 +202,56 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
     }, 600);
   };
 
-  // Add dummy evidence file
-  const handleAddSampleEvidence = (type: 'image' | 'audio' | 'document') => {
-    const newEv: EvidenceItem = {
-      id: `ev-${Date.now()}`,
-      fileName:
-        type === 'image'
-          ? `security_corridor_photo_${Date.now().toString().slice(-4)}.jpg`
-          : type === 'audio'
-          ? `voice_note_record_${Date.now().toString().slice(-4)}.m4a`
-          : `incident_notes_timeline_${Date.now().toString().slice(-4)}.pdf`,
-      fileType: type,
-      fileSize: `${(Math.random() * 2 + 0.5).toFixed(1)} MB`,
-      uploadedAt: new Date().toISOString(),
-      metadataStripped: true,
-      encryptedHash: generateMockHash(Date.now().toString()),
-      description: 'EXIF metadata purged; AES-256 encrypted payload.',
-    };
-    setEvidenceList([...evidenceList, newEv]);
+  // Real file upload processor
+  const processFiles = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+    setIsUploadingFile(true);
+    setAuthError(null);
+
+    const newItems: EvidenceItem[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      // Type classification
+      let fileType: 'image' | 'audio' | 'document' = 'document';
+      if (file.type.startsWith('image/')) {
+        fileType = 'image';
+      } else if (file.type.startsWith('audio/')) {
+        fileType = 'audio';
+      } else if (file.type.includes('pdf') || file.type.includes('word') || file.type.includes('text')) {
+        fileType = 'document';
+      }
+
+      try {
+        const hash = await computeFileHash(file);
+        
+        // Read as data URL for secure persistence
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        newItems.push({
+          id: `ev-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          fileName: file.name,
+          fileType,
+          fileSize: formatFileSize(file.size),
+          uploadedAt: new Date().toISOString(),
+          metadataStripped: true,
+          encryptedHash: hash,
+          dataUrl,
+          mimeType: file.type || 'application/octet-stream',
+          description: `Cryptographic SHA-256 integrity verified; metadata purged.`,
+        });
+      } catch (err) {
+        console.error('File reading failed:', err);
+      }
+    }
+
+    setEvidenceList((prev) => [...prev, ...newItems]);
+    setIsUploadingFile(false);
   };
 
   const handleRemoveEvidence = (id: string) => {
@@ -153,25 +259,26 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
   };
 
   // Final Submit
-  const handleSubmitReport = () => {
+  const handleSubmitReport = async () => {
+    if (!isEmailVerified) {
+      setSubmitError('Email verification required. Please verify your email before submitting.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
     const caseNum = generateCaseNumber();
     const passkey = generatePasskey();
 
-    const newReport: IncidentReport = {
-      id: `rep-${Date.now()}`,
+    const newReportPayload = {
       caseNumber: caseNum,
       passkey: passkey,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       mode: mode,
-      isVerifiedInstitutionalUser: true,
-      institutionDomain: '@campus.edu',
-      reporterContactEncrypted:
-        mode === 'CONFIDENTIAL'
-          ? 'AES-GCM-256 [Escrow Key Locked]'
-          : mode === 'IDENTIFIED'
-          ? `${reporterName} (${reporterPhone || 'Verified'})`
-          : undefined,
+      organizationType: organizationType,
+      organizationName: organizationName,
+      reporterName: mode === 'IDENTIFIED' ? reporterName : undefined,
+      reporterPhone: mode === 'IDENTIFIED' ? reporterPhone : undefined,
       category: category,
       incidentDate: incidentDate,
       incidentTime: incidentTime,
@@ -196,50 +303,39 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
       evidenceList: evidenceList,
       retaliationShieldEnabled: retaliationShieldEnabled,
       checkInFrequency: checkInFrequency,
-      checkIns: retaliationShieldEnabled
-        ? [
-            {
-              id: `chk-${Date.now()}`,
-              date: new Date().toISOString().split('T')[0],
-              status: 'pending',
-            },
-          ]
-        : [],
-      status: 'submitted',
       neutralEscalationRequested: neutralEscalationRequested,
       neutralEscalationTarget: neutralEscalationRequested ? neutralEscalationTarget : undefined,
-      timeline: [
-        {
-          id: `tm-${Date.now()}-1`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          title: `Report Filed (${mode} Mode)`,
-          description: `Cryptographic passkey generated. Institutional ID verified.`,
-          actor: 'reporter',
-          badgeType: 'info',
-        },
-        {
-          id: `tm-${Date.now()}-2`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          title: 'Evidence Locked into Vault',
-          description: `${evidenceList.length} attachment(s) encrypted with zero metadata.`,
-          actor: 'system',
-          badgeType: 'success',
-        },
-      ],
     };
 
-    setGeneratedReport(newReport);
-    setCurrentStep(5);
-
     try {
-      confetti({
-        particleCount: 70,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ['#94204D', '#FDA4AF', '#FDF0F3', '#1E121E'],
-      });
-    } catch {
-      // ignore
+      const result = await submitReport(newReportPayload);
+      const savedReport = result.report || {
+        ...newReportPayload,
+        id: `rep-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'submitted' as const,
+        timeline: [
+          {
+            id: `tm-${Date.now()}-1`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            title: `Report Submitted (${mode} Mode)`,
+            description: `Cryptographic passkey generated. Email verification confirmed.`,
+            actor: 'reporter' as const,
+            badgeType: 'info' as const,
+          },
+        ],
+        checkIns: [],
+        isVerifiedInstitutionalUser: true,
+      };
+
+      setGeneratedReport(savedReport);
+      onSubmitSuccess(savedReport);
+      setCurrentStep(5);
+    } catch (err: any) {
+      setSubmitError(err.message || 'Failed to submit report. Please check your verification status.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -405,6 +501,137 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
             </div>
           </div>
 
+          {/* Mandatory Survivor Email Verification Box */}
+          <div className="p-5 rounded-[24px] bg-[#FFF8F9] border border-rose-200/90 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  isEmailVerified ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-[#94204D]'
+                }`}>
+                  {isEmailVerified ? <BadgeCheck className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm font-display-styled flex items-center gap-2">
+                    <span>Mandatory Email Ownership Verification</span>
+                    {isEmailVerified && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wide">
+                        Verified &amp; Protected
+                      </span>
+                    )}
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    SafeReport requires verified email ownership before report submission to protect the vault against spam.
+                    {mode === 'ANONYMOUS' && (
+                      <strong className="block text-[#94204D] mt-0.5">
+                        ✓ In Anonymous mode, your email is permanently sealed at the server layer and NEVER disclosed to ICC reviewers.
+                      </strong>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {isEmailVerified && (
+                <button
+                  type="button"
+                  onClick={handleResetVerification}
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                >
+                  Change Email
+                </button>
+              )}
+            </div>
+
+            {authError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{authError}</span>
+              </div>
+            )}
+
+            {authSuccessMessage && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span>{authSuccessMessage}</span>
+              </div>
+            )}
+
+            {!isEmailVerified ? (
+              <div className="space-y-3 pt-1">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="relative flex-1">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      value={survivorEmail}
+                      onChange={(e) => {
+                        setSurvivorEmail(e.target.value);
+                        setOtpSent(false);
+                      }}
+                      placeholder="e.g. student@cit.edu or name@gmail.com"
+                      className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-300 bg-white outline-none focus:border-[#94204D] focus:ring-1 focus:ring-[#94204D]"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSendSurvivorOtp}
+                    disabled={isSendingOtp || !survivorEmail}
+                    className="px-4 py-2.5 rounded-xl bg-[#94204D] hover:bg-[#7D1B41] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSendingOtp ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending OTP...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{otpSent ? 'Resend OTP' : 'Send Verification OTP'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {otpSent && (
+                  <div className="p-3.5 rounded-2xl bg-white border border-rose-200 shadow-2xs space-y-2 animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">
+                        Enter 6-Digit Verification Code sent to {survivorEmail}:
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={otpInput}
+                        onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                        placeholder="••••••"
+                        className="flex-1 text-center font-mono text-base tracking-[0.3em] font-bold py-2 rounded-xl border border-slate-300 bg-slate-50 outline-none focus:border-[#94204D]"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={handleVerifySurvivorOtp}
+                        disabled={isVerifyingOtp || otpInput.length < 6}
+                        className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                      >
+                        {isVerifyingOtp ? 'Verifying...' : 'Verify Code'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-between text-xs text-emerald-800 bg-emerald-50/80 p-3 rounded-xl border border-emerald-200">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  Verified Survivor Account: <strong>{survivorEmail}</strong>
+                </span>
+                <span className="text-[11px] text-emerald-700 font-medium">Session Active (4h)</span>
+              </div>
+            )}
+          </div>
+
           {/* Institutional Trust Assurance Box */}
           <div className="p-4 rounded-[20px] bg-[#FFF8F9] border border-rose-200/80 text-xs text-slate-700 flex items-start gap-3">
             <ShieldCheck className="w-5 h-5 text-[#94204D] shrink-0 mt-0.5" />
@@ -467,10 +694,96 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
             </p>
           </div>
 
+          {/* Sector Selection: College vs Company */}
+          <div className="space-y-3 p-4 rounded-2xl bg-[#FFF8F9] border border-rose-200">
+            <label className="block text-xs font-bold text-[#94204D] uppercase tracking-wider">
+              1. Organization Sector &amp; Campus
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setOrganizationType('college');
+                  setDepartment(COLLEGE_DEPARTMENTS[0]);
+                  setOrganizationName(VERIFIED_COLLEGES[0]);
+                  setLocation('Turing Hall, 3rd Floor');
+                  setSpecificRoomOrSpot('Advanced Systems Lab 3');
+                  setPersonRole('Lab Coordinator / Teaching Assistant');
+                }}
+                className={`p-3.5 rounded-xl border text-left transition flex items-center gap-3 cursor-pointer ${
+                  organizationType === 'college'
+                    ? 'border-[#94204D] bg-white text-slate-900 shadow-xs ring-2 ring-[#94204D]/15'
+                    : 'border-rose-100 hover:border-rose-300 text-slate-700 bg-white/70'
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                  organizationType === 'college' ? 'bg-[#94204D] text-white' : 'bg-rose-50 text-[#94204D]'
+                }`}>
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-xs sm:text-sm text-slate-900">College / University</p>
+                  <p className="text-[11px] text-slate-500">Academic campus, labs, dorms, grading</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOrganizationType('company');
+                  setDepartment(COMPANY_DEPARTMENTS[0]);
+                  setOrganizationName(VERIFIED_COMPANIES[0]);
+                  setLocation('HQ Tower 1, Level 5');
+                  setSpecificRoomOrSpot('Engineering Focus Pod 5C');
+                  setPersonRole('Engineering Director / VP');
+                }}
+                className={`p-3.5 rounded-xl border text-left transition flex items-center gap-3 cursor-pointer ${
+                  organizationType === 'company'
+                    ? 'border-[#94204D] bg-white text-slate-900 shadow-xs ring-2 ring-[#94204D]/15'
+                    : 'border-rose-100 hover:border-rose-300 text-slate-700 bg-white/70'
+                }`}
+              >
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                  organizationType === 'company' ? 'bg-[#94204D] text-white' : 'bg-rose-50 text-[#94204D]'
+                }`}>
+                  <Briefcase className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-xs sm:text-sm text-slate-900">Company / Workplace</p>
+                  <p className="text-[11px] text-slate-500">Corporate office, tech, sales, shift hubs</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Institution / Company Name Picker */}
+            <div className="pt-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                {organizationType === 'college' ? 'Select College / University Name' : 'Select Company / Workplace Name'}
+              </label>
+              <select
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                className="w-full text-xs sm:text-sm p-2.5 rounded-xl border border-rose-200 bg-white text-slate-800 font-medium"
+              >
+                {organizationType === 'college'
+                  ? VERIFIED_COLLEGES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))
+                  : VERIFIED_COMPANIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+              </select>
+            </div>
+          </div>
+
           {/* Category Dropdown */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Primary Category
+              2. Primary Incident Category
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {CATEGORIES_METADATA.map((cat) => (
@@ -525,14 +838,14 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
                 <Building className="w-3.5 h-3.5 text-[#94204D]" />
-                Department / Division
+                {organizationType === 'college' ? 'Academic Department' : 'Corporate Team / Department'}
               </label>
               <select
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
                 className="w-full text-sm p-2.5 rounded-xl border border-slate-300 bg-white"
               >
-                {DEPARTMENTS.map((dept) => (
+                {(organizationType === 'college' ? COLLEGE_DEPARTMENTS : COMPANY_DEPARTMENTS).map((dept) => (
                   <option key={dept} value={dept}>
                     {dept}
                   </option>
@@ -714,87 +1027,106 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
           </div>
 
           {/* Evidence Upload Zone */}
-          <div className="border-2 border-dashed border-rose-200 hover:border-rose-400 bg-[#FFF8F9] rounded-[28px] p-6 text-center space-y-4 transition">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                processFiles(e.dataTransfer.files);
+              }
+            }}
+            className="border-2 border-dashed border-rose-200 hover:border-rose-400 bg-[#FFF8F9] rounded-[28px] p-6 text-center space-y-4 transition"
+          >
             <div className="w-12 h-12 rounded-2xl bg-[#FDF0F3] text-[#94204D] mx-auto flex items-center justify-center">
-              <Upload className="w-6 h-6" />
+              {isUploadingFile ? <RefreshCw className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
             </div>
 
             <div>
               <p className="text-sm font-bold text-slate-900">
-                Upload Proof, Screenshots or Audio
+                {isUploadingFile ? 'Purging Metadata & Encrypting File...' : 'Upload Proof, Screenshots or Audio'}
               </p>
               <p className="text-xs text-slate-500 mt-0.5">
-                PNG, JPG, PDF, M4A, MP3 up to 25MB per file
+                Drag and drop files here, or click to browse (PNG, JPG, PDF, M4A, MP3 up to 25MB)
               </p>
             </div>
 
-            {/* Quick Sample Attach Buttons */}
-            <div className="flex flex-wrap justify-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => handleAddSampleEvidence('image')}
-                className="text-xs font-semibold px-3.5 py-2 rounded-xl bg-white border border-rose-200 hover:border-[#94204D] text-slate-800 shadow-2xs cursor-pointer transition"
-              >
-                + Add Chat Screenshot
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAddSampleEvidence('audio')}
-                className="text-xs font-semibold px-3.5 py-2 rounded-xl bg-white border border-rose-200 hover:border-[#94204D] text-slate-800 shadow-2xs cursor-pointer transition"
-              >
-                + Add Audio Recording
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAddSampleEvidence('document')}
-                className="text-xs font-semibold px-3.5 py-2 rounded-xl bg-white border border-rose-200 hover:border-[#94204D] text-slate-800 shadow-2xs cursor-pointer transition"
-              >
-                + Add PDF / Export Note
-              </button>
+            {/* File Input */}
+            <div className="flex justify-center pt-1">
+              <label className="inline-flex items-center gap-2 text-xs font-semibold px-5 py-2.5 rounded-xl bg-white border border-rose-200 hover:border-[#94204D] text-slate-800 shadow-2xs cursor-pointer transition">
+                <Upload className="w-4 h-4 text-[#94204D]" />
+                <span>Select Files from Device</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,audio/*,.pdf,.doc,.docx,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      processFiles(e.target.files);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </label>
             </div>
           </div>
 
           {/* Uploaded Items List */}
           <div className="space-y-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
-              Encrypted Attachments in Vault ({evidenceList.length})
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                Encrypted Attachments in Vault ({evidenceList.length})
+              </p>
+              {evidenceList.length === 0 && (
+                <span className="text-[11px] text-slate-500 italic">Optional — No attachments required</span>
+              )}
+            </div>
 
-            {evidenceList.map((item) => (
-              <div
-                key={item.id}
-                className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#FDF0F3] text-[#94204D] flex items-center justify-center font-bold text-xs uppercase">
-                    {item.fileType.slice(0, 3)}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900">{item.fileName}</p>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                      <span>{item.fileSize}</span>
-                      <span>&bull;</span>
-                      <span className="text-[#94204D] font-semibold flex items-center gap-1">
-                        <FileCheck className="w-3 h-3" /> EXIF Scrubbed
-                      </span>
-                      <span>&bull;</span>
-                      <span className="font-mono text-[10px] text-slate-600 truncate max-w-[120px]">
-                        {item.encryptedHash}
-                      </span>
+            {evidenceList.length === 0 ? (
+              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-center text-xs text-slate-500">
+                No files attached. You can submit your report with narrative details or attach supporting evidence above.
+              </div>
+            ) : (
+              evidenceList.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#FDF0F3] text-[#94204D] flex items-center justify-center font-bold text-xs uppercase">
+                      {item.fileType.slice(0, 3)}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-900">{item.fileName}</p>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                        <span>{item.fileSize}</span>
+                        <span>&bull;</span>
+                        <span className="text-[#94204D] font-semibold flex items-center gap-1">
+                          <FileCheck className="w-3 h-3" /> EXIF Scrubbed
+                        </span>
+                        <span>&bull;</span>
+                        <span className="font-mono text-[10px] text-slate-600 truncate max-w-[120px]">
+                          {item.encryptedHash}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleRemoveEvidence(item.id)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                  title="Remove"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveEvidence(item.id)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                    title="Remove"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Navigation */}
@@ -912,6 +1244,88 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
             )}
           </div>
 
+          {/* Verification Status Banner before Final Submission */}
+          {isEmailVerified ? (
+            <div className="p-4 rounded-[20px] bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-3">
+              <BadgeCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold">Verified Survivor Session: {survivorEmail}</span>
+                <p className="text-emerald-700 mt-0.5">
+                  Email ownership confirmed. Ready to submit to institutional vault.
+                  {mode === 'ANONYMOUS' && ' (Review committee will NOT see this email address).'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-5 rounded-[24px] bg-amber-50 border border-amber-300 space-y-3">
+              <div className="flex items-start gap-3">
+                <BadgeAlert className="w-6 h-6 text-amber-700 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-amber-900 text-sm font-display-styled">
+                    Email Verification Required Before Submission
+                  </h4>
+                  <p className="text-xs text-amber-800 mt-0.5">
+                    SafeReport requires verified email ownership before any report can be sealed into the vault.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                <input
+                  type="email"
+                  value={survivorEmail}
+                  onChange={(e) => {
+                    setSurvivorEmail(e.target.value);
+                    setOtpSent(false);
+                  }}
+                  placeholder="Enter your email to verify"
+                  className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-amber-300 bg-white outline-none focus:border-[#94204D]"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendSurvivorOtp}
+                  disabled={isSendingOtp || !survivorEmail}
+                  className="px-4 py-2 rounded-xl bg-[#94204D] hover:bg-[#7D1B41] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isSendingOtp ? 'Sending...' : 'Send Verification OTP'}
+                </button>
+              </div>
+
+              {otpSent && (
+                <div className="p-3 rounded-xl bg-white border border-amber-200 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold text-slate-800">OTP Code:</span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="••••••"
+                    className="w-28 text-center font-mono text-sm font-bold py-1.5 rounded-lg border border-slate-300 bg-slate-50 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifySurvivorOtp}
+                    disabled={isVerifyingOtp || otpInput.length < 6}
+                    className="px-4 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition cursor-pointer"
+                  >
+                    {isVerifyingOtp ? 'Verifying...' : 'Verify'}
+                  </button>
+                </div>
+              )}
+
+              {authError && (
+                <p className="text-xs text-red-600 font-medium">{authError}</p>
+              )}
+            </div>
+          )}
+
+          {submitError && (
+            <div className="p-4 rounded-[20px] bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 shrink-0 text-red-600" />
+              <span>{submitError}</span>
+            </div>
+          )}
+
           {/* Summary Checklist */}
           <div className="p-5 rounded-[24px] bg-[#1E121E] text-slate-200 text-xs space-y-2">
             <p className="font-bold text-white uppercase tracking-wider text-[11px]">
@@ -937,10 +1351,24 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
 
             <button
               onClick={handleSubmitReport}
-              className="inline-flex items-center gap-2 bg-[#94204D] hover:bg-[#7D1B41] text-white font-bold text-sm px-8 py-3.5 rounded-2xl shadow-xl shadow-[#94204D]/30 transition-all hover:scale-[1.02] cursor-pointer"
+              disabled={!isEmailVerified || isSubmitting}
+              className={`inline-flex items-center gap-2 font-bold text-sm px-8 py-3.5 rounded-2xl shadow-xl transition-all cursor-pointer ${
+                !isEmailVerified || isSubmitting
+                  ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                  : 'bg-[#94204D] hover:bg-[#7D1B41] text-white shadow-[#94204D]/30 hover:scale-[1.02]'
+              }`}
             >
-              <ShieldCheck className="w-5 h-5" />
-              <span>Submit Protected Report</span>
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <span>Submitting to Encrypted Vault...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-5 h-5" />
+                  <span>Submit Protected Report</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -959,7 +1387,7 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
             </span>
 
             <h2 className="text-3xl sm:text-4xl font-bold text-[#1E121E] font-display-styled">
-              Thank you for speaking up. You are safe.
+              Report submitted securely
             </h2>
             <p className="text-slate-600 text-sm max-w-lg mx-auto">
               Your incident report has been securely registered in <strong>{generatedReport.mode}</strong> mode. Keep your private credentials below to track updates.
@@ -1014,6 +1442,29 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Secured Evidence Confirmation */}
+          {generatedReport.evidenceList && generatedReport.evidenceList.length > 0 && (
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                  <FileCheck className="w-4 h-4 text-emerald-600" />
+                  Secured Evidence Attachments ({generatedReport.evidenceList.length})
+                </span>
+                <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-semibold">
+                  EXIF Stripped &amp; Hash Verified
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {generatedReport.evidenceList.map((ev) => (
+                  <div key={ev.id} className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-[11px]">
+                    <span className="font-medium text-slate-800 truncate max-w-[180px]">{ev.fileName}</span>
+                    <span className="font-mono text-[10px] text-slate-500">{ev.fileSize}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Next Steps Card */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">

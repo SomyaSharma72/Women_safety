@@ -107,7 +107,7 @@ export const SaferPathSection: React.FC<SaferPathSectionProps> = ({
                 </p>
               </div>
               <div className="mt-5 pt-3 border-t border-[#FADCE2]/60 flex items-center text-xs font-bold text-[#94204D]">
-                <span>View radar</span>
+                <span>View institutions</span>
                 <span className="ml-1">&rarr;</span>
               </div>
             </motion.div>

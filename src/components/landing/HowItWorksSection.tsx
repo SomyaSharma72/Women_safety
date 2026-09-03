@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { CheckCircle2, ArrowRight } from 'lucide-react';
+import { CheckCircle2, ArrowRight, ShieldCheck, Lock, FolderLock } from 'lucide-react';
 import {
   PrivacyChoiceWomanIllustration,
   DocumentingWomanIllustration,
@@ -16,148 +16,140 @@ export const HowItWorksSection: React.FC<HowItWorksSectionProps> = ({
   onStartReportWithMode,
 }) => {
   return (
-    <section id="how-it-works-section" className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+    <section id="how-it-works-section" className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
       
       {/* Section Header */}
-      <div className="text-center max-w-3xl mx-auto space-y-4">
-        <span className="inline-block px-3.5 py-1 bg-[#FDF0F3] text-[#94204D] text-xs font-bold rounded-full uppercase tracking-wider border border-[#FADCE2]">
-          Clear, Supportive Process
+      <div className="text-center max-w-2xl mx-auto space-y-2.5">
+        <span className="text-xs font-bold uppercase tracking-wider text-[#94204D] font-mono">
+          Simple 3-Step Process
         </span>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1E121E] font-display-styled">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1E121E] font-display-styled tracking-tight">
           How SafeReport Works
         </h2>
-        <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-          From first documentation to institutional resolution, you remain in complete control of your identity, evidence, and timing.
-        </p>
       </div>
 
-      {/* 3 Steps with Large Numbers & Rich Character Illustrations */}
-      <div className="space-y-12">
+      {/* 3 Step Columns in 1 Balanced Row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10 pt-4">
         
         {/* Step 01: Choose Your Privacy */}
-        <div className="bg-white rounded-[36px] p-8 sm:p-12 border border-slate-200/90 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-7 space-y-5">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl sm:text-4xl font-black font-mono text-teal-600">01</span>
-              <span className="text-xs font-bold uppercase tracking-widest bg-teal-50 text-teal-800 px-3 py-1 rounded-full border border-teal-200">
-                Step One
-              </span>
+        <div className="flex flex-col justify-between space-y-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold font-mono text-[#94204D]">01</span>
+              <span className="text-[11px] font-semibold text-slate-500 font-mono">STEP 1</span>
             </div>
 
-            <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 font-display-styled">
-              CHOOSE YOUR PRIVACY
+            <h3 className="text-2xl font-bold text-[#1E121E] font-display-styled">
+              Choose Your Privacy
             </h3>
 
-            <p className="text-slate-600 text-base leading-relaxed">
-              Reporting isn't all-or-nothing. Select the exact level of protection that fits your comfort level:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              <div className="p-3.5 rounded-2xl bg-rose-50/80 border border-rose-200/70">
-                <span className="font-bold text-rose-900 text-sm block">Anonymous</span>
-                <span className="text-xs text-rose-700">100% hidden identity. Zero reviewer exposure.</span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-indigo-50/80 border border-indigo-200/70">
-                <span className="font-bold text-indigo-900 text-sm block">Confidential</span>
-                <span className="text-xs text-indigo-700">Key escrow lock. Revealed only in formal hearings.</span>
-              </div>
-              <div className="p-3.5 rounded-2xl bg-teal-50/80 border border-teal-200/70">
-                <span className="font-bold text-teal-900 text-sm block">Identified</span>
-                <span className="text-xs text-teal-700">Direct formal inquiry with rapid resolution.</span>
-              </div>
-            </div>
-
-            <div className="pt-2">
+            {/* Privacy Selectors */}
+            <div className="space-y-2 pt-2">
               <button
                 onClick={() => onStartReportWithMode('ANONYMOUS')}
-                className="inline-flex items-center gap-2 text-teal-700 hover:text-teal-900 font-bold text-sm underline cursor-pointer"
+                className="w-full p-3 rounded-xl bg-[#FFF8F9] border border-rose-200/80 text-left hover:bg-rose-100/50 transition flex items-center justify-between text-xs cursor-pointer group"
               >
-                <span>Start with Anonymous Mode</span>
-                <ArrowRight className="w-4 h-4" />
+                <div>
+                  <span className="font-bold text-[#94204D] block text-sm">Anonymous</span>
+                  <span className="text-[11px] text-slate-600">Zero personal data attached</span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-[#94204D] opacity-40 group-hover:opacity-100 transition-opacity" />
+              </button>
+
+              <button
+                onClick={() => onStartReportWithMode('CONFIDENTIAL')}
+                className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-left hover:bg-slate-100 transition flex items-center justify-between text-xs cursor-pointer group"
+              >
+                <div>
+                  <span className="font-bold text-slate-900 block text-sm">Confidential</span>
+                  <span className="text-[11px] text-slate-600">Key escrow locked</span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-600 opacity-40 group-hover:opacity-100 transition-opacity" />
+              </button>
+
+              <button
+                onClick={() => onStartReportWithMode('IDENTIFIED')}
+                className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-left hover:bg-slate-100 transition flex items-center justify-between text-xs cursor-pointer group"
+              >
+                <div>
+                  <span className="font-bold text-slate-900 block text-sm">Identified</span>
+                  <span className="text-[11px] text-slate-600">Direct institutional inquiry</span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-600 opacity-40 group-hover:opacity-100 transition-opacity" />
               </button>
             </div>
           </div>
 
-          <div className="lg:col-span-5 flex justify-center">
-            <PrivacyChoiceWomanIllustration className="w-full" />
+          <div className="bg-[#FFF8F9] rounded-2xl p-4 sm:p-6 border border-rose-100 flex items-center justify-center">
+            <PrivacyChoiceWomanIllustration className="w-full max-w-[220px]" />
           </div>
         </div>
 
         {/* Step 02: Document What Happened */}
-        <div className="bg-white rounded-[36px] p-8 sm:p-12 border border-slate-200/90 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-5 order-2 lg:order-1 flex justify-center">
-            <DocumentingWomanIllustration className="w-full" />
-          </div>
-
-          <div className="lg:col-span-7 order-1 lg:order-2 space-y-5">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl sm:text-4xl font-black font-mono text-rose-500">02</span>
-              <span className="text-xs font-bold uppercase tracking-widest bg-rose-50 text-rose-800 px-3 py-1 rounded-full border border-rose-200">
-                Step Two
-              </span>
+        <div className="flex flex-col justify-between space-y-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold font-mono text-[#94204D]">02</span>
+              <span className="text-[11px] font-semibold text-slate-500 font-mono">STEP 2</span>
             </div>
 
-            <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 font-display-styled">
-              DOCUMENT WHAT HAPPENED
+            <h3 className="text-2xl font-bold text-[#1E121E] font-display-styled">
+              Document What Happened
             </h3>
 
-            <p className="text-slate-600 text-base leading-relaxed">
-              Record incident timelines, specific locations, and supporting evidence without the burden of legal jargon.
-            </p>
+            {/* Essential Documenting Points */}
+            <div className="space-y-2.5 pt-2 text-sm text-slate-700">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#94204D] shrink-0 mt-0.5" />
+                <span><strong>Timeline &amp; Location:</strong> Precise chronology and location logs</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#94204D] shrink-0 mt-0.5" />
+                <span><strong>Encrypted Vault:</strong> EXIF metadata scrubbed automatically</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#94204D] shrink-0 mt-0.5" />
+                <span><strong>Objective Facts:</strong> Guided non-leading incident questions</span>
+              </div>
+            </div>
+          </div>
 
-            <ul className="space-y-2.5 text-sm text-slate-700">
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                <span><strong>Incident Timeline:</strong> Date, time, recurring patterns, and location tag.</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                <span><strong>Evidence Vault:</strong> Upload screenshots, recordings, or docs with EXIF auto-scrubbed.</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                <span><strong>AI Incident Structuring:</strong> Organizes notes into clear factual points.</span>
-              </li>
-            </ul>
+          <div className="bg-[#FFF8F9] rounded-2xl p-4 sm:p-6 border border-rose-100 flex items-center justify-center">
+            <DocumentingWomanIllustration className="w-full max-w-[220px]" />
           </div>
         </div>
 
         {/* Step 03: Stay In Control */}
-        <div className="bg-white rounded-[36px] p-8 sm:p-12 border border-slate-200/90 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-7 space-y-5">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl sm:text-4xl font-black font-mono text-indigo-600">03</span>
-              <span className="text-xs font-bold uppercase tracking-widest bg-indigo-50 text-indigo-800 px-3 py-1 rounded-full border border-indigo-200">
-                Step Three
-              </span>
+        <div className="flex flex-col justify-between space-y-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold font-mono text-[#94204D]">03</span>
+              <span className="text-[11px] font-semibold text-slate-500 font-mono">STEP 3</span>
             </div>
 
-            <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 font-display-styled">
-              STAY IN CONTROL
+            <h3 className="text-2xl font-bold text-[#1E121E] font-display-styled">
+              Stay in Control
             </h3>
 
-            <p className="text-slate-600 text-base leading-relaxed">
-              Track progress through a private zero-login Passkey, receive weekly Retaliation Shield check-ins, and choose when to escalate.
-            </p>
-
-            <ul className="space-y-2.5 text-sm text-slate-700">
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                <span><strong>Private Passkey Access:</strong> Check status without linking a public user account.</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                <span><strong>Retaliation Shield:</strong> Automatic safe check-ins to monitor workplace/campus safety.</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                <span><strong>Corroborated Escalation:</strong> Choose to join a collective inquiry if patterns emerge.</span>
-              </li>
-            </ul>
+            {/* Essential Tracking Points */}
+            <div className="space-y-2.5 pt-2 text-sm text-slate-700">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#94204D] shrink-0 mt-0.5" />
+                <span><strong>Zero-Login Passkey:</strong> Check status anytime without signing up</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#94204D] shrink-0 mt-0.5" />
+                <span><strong>Retaliation Shield:</strong> Scheduled check-ins to monitor your safety</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-[#94204D] shrink-0 mt-0.5" />
+                <span><strong>Escalation Autonomy:</strong> Choose if and when to proceed to inquiry</span>
+              </div>
+            </div>
           </div>
 
-          <div className="lg:col-span-5 flex justify-center">
-            <CaseTrackingWomanIllustration className="w-full" />
+          <div className="bg-[#FFF8F9] rounded-2xl p-4 sm:p-6 border border-rose-100 flex items-center justify-center">
+            <CaseTrackingWomanIllustration className="w-full max-w-[220px]" />
           </div>
         </div>
 
