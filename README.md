@@ -1,99 +1,226 @@
-# SafeReport — Privacy-Preserving Harassment Reporting Platform
+# SilentShield
 
-SafeReport is a secure, trauma-informed harassment reporting platform built to safeguard survivors while giving institutional review committees (Internal Complaints Committees - ICC) structured, actionable visibility into incident dossiers and recurring behavioral patterns.
+SilentShield is a privacy-first harassment and incident reporting platform designed to make reporting safer, simpler, and more actionable.
 
----
-
-## Required Environment Variables
-
-Configure the following variables in your server environment (or `.env` file):
-
-```env
-MONGODB_CONNECTION_STRING=
-JWT_SECRET=
-RESEND_API_KEY=
-```
-
-### Environment Variable Details
-
-- **`MONGODB_CONNECTION_STRING`**: The complete MongoDB connection string (e.g., `mongodb+srv://<user>:<password>@cluster0.mongodb.net/SafeReport?retryWrites=true&w=majority`). The database name can be part of the URI path; if omitted, SafeReport automatically defaults to the `SafeReport` database.
-- **`JWT_SECRET`**: A cryptographically random secret string used by the server to sign and verify survivor verification sessions and ICC officer JWT authentication tokens.
-- **`RESEND_API_KEY`**: Your official Resend API key (from [resend.com](https://resend.com)). This key is kept strictly server-side and is used exclusively for dispatching 6-digit email OTPs from `SafeReport <onboarding@resend.dev>`.
+It allows survivors to submit reports without creating an account or going through email/OTP verification, while authorized Institutional Committee (ICC) officers can securely review reports, evidence, and case information.
 
 ---
 
-## Demo ICC Portal Credentials
+## Overview
 
-For evaluators, audit reviewers, and hackathon judges, a dedicated demo ICC Presiding Officer account is provisioned for Crestview Institute of Technology:
+Harassment and misconduct often go unreported because survivors may fear exposure, complicated reporting procedures, or lack of confidence in how their information will be handled.
 
-```
-## Demo ICC Portal Credentials
-Email: testmail@shield.com
-Password: 123
+SilentShield provides a structured digital reporting system where:
 
-DEMO ONLY — NOT FOR PRODUCTION
-```
-
-*Note: For the demo environment, ICC authentication requires only email and password. No 2FA/OTP is dispatched for the ICC demo login.*
-
----
-
-## Architecture & Security Model
-
-1. **Trauma-Informed Survivor Reporting**:
-   - Three statutory privacy modes:
-     - **Anonymous**: Zero identifying survivor tokens or contact information exposed to reviewers; communication is routed via cryptographically unlinked case mailboxes.
-     - **Confidential**: Identifying details are sealed in an encrypted vault accessible only to the authorized ICC Presiding Officer.
-     - **Identified**: Standard formal grievance filing with identified parties.
-   - **Real Resend Email Verification**:
-     - Cryptographically random 6-digit numeric OTP.
-     - Only a SHA-256 hash is persisted in MongoDB with a 10-minute expiration.
-     - Maximum 5 verification attempts; OTP is burnt upon successful verification (single-use).
-     - Verified session token (`sr_sess_...`) is required at the server level to submit any report.
-     - Email verification confirms mailbox control to discourage automated spam—it makes no claim regarding gender or personal identity authenticity.
-
-2. **Statutory Institutional Isolation**:
-   - Case dossiers are strictly scoped to the authenticated officer's institution (e.g. `cres_001` for Crestview Institute of Technology).
-   - Cross-institutional access attempts return `HTTP 403 Forbidden` enforced server-side.
-   - Unauthenticated requests return `HTTP 401 Unauthorized`.
-
-3. **Secure Evidence Custody**:
-   - Evidence files (images, audio recordings, documents, PDFs) are validated server-side by MIME type, extension, and file size (max 25MB).
-   - Filenames are sanitized against directory traversal attacks.
-   - SHA-256 integrity hashes are computed and stored in MongoDB.
-   - Files are stored privately and can only be downloaded through authenticated, institution-authorized ICC endpoints (`/api/icc/cases/:caseNumber/evidence/:evidenceId/download`). No public URLs exist.
+- Survivors can submit reports without creating an account.
+- Reports are securely stored in MongoDB.
+- Survivors receive a case/reference number after submission.
+- Authorized ICC officers can review and manage submitted cases.
+- Uploaded evidence can be securely viewed and downloaded by authorized officers.
+- Privacy modes allow survivors to control how their identity is presented.
+- Case tracking allows users to check the status of a report.
 
 ---
 
-## End-to-End Evaluation Workflow
+## Key Features
 
-Follow these steps to test the complete end-to-end workflow:
+### Anonymous & Privacy-Aware Reporting
 
-1. **Start the Application**:
-   - Ensure `MONGODB_CONNECTION_STRING`, `JWT_SECRET`, and `RESEND_API_KEY` are provided.
-   - The server boots on port 3000 with unified API and client routing.
+Survivors can submit reports without creating an account or verifying their email address.
 
-2. **Submit a Report as a Survivor**:
-   - Open the application in **Survivor Mode**.
-   - Select an incident type, date, location, and description.
-   - Choose a privacy mode (e.g., **Anonymous** or **Confidential**).
-   - Enter your email address to receive a real verification code.
-   - Receive the real 6-digit OTP in your inbox via Resend.
-   - Enter the OTP to generate a verified server-side submission session.
-   - (Optional) Upload evidence files (screenshot, audio note, or document).
-   - Submit the report.
-   - Observe the calm, dignified success screen displaying your case number (e.g., `CR-2026-XXXX`) and private recovery passkey.
+SilentShield supports privacy-focused reporting modes so that a survivor can choose how their identity is handled.
 
-3. **Log Into the ICC Demo Portal**:
-   - Switch to the **ICC Portal** tab or visit the review portal.
-   - Enter the evaluator demo credentials:
-     - **Email**: `testmail@shield.com`
-     - **Password**: `123`
-   - Click **Log In to ICC Portal**.
-   - You are immediately authenticated into the Crestview Institute of Technology ICC dashboard without an OTP prompt.
+The reporter's email/contact information can be stored with the report and is accessible to authorized ICC officers when required for case handling.
 
-4. **Review the Case Dossier**:
-   - Locate the newly submitted report in the case list.
-   - Inspect the dossier: confirm the privacy mode is honored (no identifying tokens in Anonymous mode).
-   - Verify that any attached evidence can be securely downloaded and inspected.
-   - Update case status, record investigative notes, or trigger safety check-ins.
+---
+
+### Structured Incident Reporting
+
+Reports can contain structured information about an incident, including relevant details and supporting information.
+
+Each submitted report receives a unique case/reference number that can be used for tracking.
+
+---
+
+### Secure Evidence Uploads
+
+Survivors can attach supporting evidence to their reports.
+
+Evidence is:
+
+- Stored on the server
+- Associated with the corresponding case
+- Protected behind ICC authentication
+- Restricted according to institutional access
+- Available for authorized ICC officers to view and download
+
+Evidence is not exposed through a public URL.
+
+---
+
+### ICC Portal
+
+Authorized ICC officers have access to a protected dashboard where they can:
+
+- View submitted cases
+- Review incident details
+- Check reporter information available to them
+- Review privacy settings
+- View uploaded evidence
+- Download evidence
+- Track case status
+
+ICC access is authenticated and restricted to the appropriate institution.
+
+---
+
+### Institution Isolation
+
+Reports and evidence are associated with institutions.
+
+ICC officers can only access cases belonging to their authorized institution, preventing cross-institution access.
+
+---
+
+### Case Tracking
+
+Survivors can use their case/reference number to check the status of a submitted report without needing a survivor account.
+
+---
+
+### Persistent Database Storage
+
+SilentShield uses MongoDB for persistent application data.
+
+Reports remain available after:
+
+- Page refreshes
+- Server restarts
+- New browser sessions
+
+The database is the source of truth for persisted reports.
+
+---
+
+### Quick Exit
+
+SilentShield includes a browser-based Quick Exit feature.
+
+Pressing **Esc** triggers a redirect to:
+
+`https://weather.com/`
+
+The application attempts to open the destination in a new tab/window and falls back to the current tab if necessary.
+
+This feature is intentionally placed as a secondary convenience feature rather than a core reporting feature.
+
+---
+
+## How It Works
+
+### 1. Submit a Report
+
+A survivor opens SilentShield and completes the reporting flow.
+
+No survivor account or email verification is required.
+
+### 2. Select Privacy Preferences
+
+The survivor selects the appropriate privacy mode for their report.
+
+### 3. Provide Contact Information
+
+A survivor can provide contact information such as an email address for communication and case handling.
+
+### 4. Upload Evidence
+
+Supporting files can be attached when necessary.
+
+### 5. Submit
+
+The report is stored in MongoDB and assigned a case/reference number.
+
+### 6. ICC Review
+
+Authorized ICC officers can log into the ICC Portal and review cases belonging to their institution.
+
+### 7. Evidence Review
+
+Authorized officers can securely view or download evidence associated with a case.
+
+---
+
+## Privacy & Security
+
+SilentShield is designed around the principle of minimizing unnecessary exposure of survivor information.
+
+Important security considerations include:
+
+- No survivor login is required for reporting.
+- No OTP or email ownership verification is used.
+- ICC authentication is separate from public reporting.
+- ICC endpoints require authenticated sessions.
+- Institution-level access restrictions are enforced.
+- Evidence access is protected by authentication and authorization.
+- Reports are persisted in MongoDB rather than relying on browser-only state.
+- Sensitive configuration values are supplied through environment variables rather than committed to the repository.
+
+> SilentShield is a hackathon/project implementation and should undergo additional security, privacy, legal, and infrastructure review before being used for real-world sensitive reporting.
+
+---
+
+## Technology Stack
+
+### Frontend
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Lucide React
+- Motion
+
+### Backend
+
+- Node.js
+- Express
+- TypeScript
+- Mongoose
+
+### Database
+
+- MongoDB
+
+### AI
+
+- Google Gemini / Google GenAI services where configured by the application
+
+### Deployment
+
+- Render or another Node.js-compatible hosting platform
+
+---
+
+## Project Structure
+
+```text
+.
+├── src/
+│   ├── components/
+│   │   └── report/
+│   │       └── ReportWizard.tsx
+│   ├── lib/
+│   │   └── api.ts
+│   └── server/
+│       ├── auth.ts
+│       ├── db/
+│       │   └── models/
+│       ├── evidenceStorage.ts
+│       └── store.ts
+│
+├── server.ts
+├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── .env.example
+└── README.md
