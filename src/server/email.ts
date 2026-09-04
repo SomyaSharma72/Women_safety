@@ -24,11 +24,11 @@ export async function sendOtpEmail(toEmail: string, otp: string): Promise<void> 
   }
 
   const resend = getResendClient();
-  const subject = 'SafeReport verification code';
-  const textBody = `Your SafeReport verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you did not request this code, you can safely ignore this email.`;
+  const subject = 'Silent Shield verification code';
+  const textBody = `Your Silent Shield verification code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you did not request this code, you can safely ignore this email.`;
 
   const { error } = await resend.emails.send({
-    from: 'SafeReport <onboarding@resend.dev>',
+    from: 'Silent Shield <onboarding@resend.dev>',
     to: toEmail.toLowerCase().trim(),
     subject,
     text: textBody,

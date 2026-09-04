@@ -19,14 +19,14 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Top Grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
           
-          {/* Col 1: SafeReport Brand */}
+          {/* Col 1: Silent Shield Brand */}
           <div className="md:col-span-5 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-[#94204D] flex items-center justify-center shadow-lg shadow-[#94204D]/30">
                 <Shield className="w-5 h-5 text-white" />
               </div>
               <span className="text-2xl font-bold font-display-styled text-white">
-                Safe<span className="text-rose-300">Report</span>
+                Silent <span className="text-rose-300">Shield</span>
               </span>
             </div>
 
@@ -103,7 +103,7 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Bottom copyright & empathy badge */}
         <div className="pt-8 border-t border-[#3D2034] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <p>
-            &copy; {new Date().getFullYear()} SafeReport &bull; Privacy-first reporting for safer institutions.
+            &copy; {new Date().getFullYear()} Silent Shield &bull; Privacy-first reporting for safer institutions.
           </p>
 
           <div className="flex items-center gap-1.5 text-slate-400">

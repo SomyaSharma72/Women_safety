@@ -89,11 +89,11 @@ export const DEMO_ICC_ACCOUNTS: IccAccount[] = [
   },
   {
     id: 'icc_admi',
-    email: 'admin@safereport-demo.org',
+    email: 'admin@silentshield-demo.org',
     name: 'National Oversight Director',
     role: 'SUPER_ADMIN',
     institutionId: '*',
-    institutionName: 'SafeReport Oversight Commission',
+    institutionName: 'Silent Shield Oversight Commission',
     envKey: 'ICC_DEMO_PASSWORD_ADMI',
     active: true,
   },
@@ -130,9 +130,9 @@ export const INSTITUTIONS: Institution[] = [
   },
   {
     id: 'admi_001',
-    name: 'SafeReport Oversight Commission',
+    name: 'Silent Shield Oversight Commission',
     shortCode: 'ADMI',
-    domain: '@safereport-demo.org',
+    domain: '@silentshield-demo.org',
     type: 'company',
   },
 ];
@@ -197,8 +197,8 @@ export function resolveInstitutionId(nameOrDomain?: string): { id: string; name:
   if (lower.includes('nova') || lower.includes('novatech')) {
     return { id: 'nova_001', name: 'NovaTech Enterprise & Research' };
   }
-  if (lower.includes('admi') || lower.includes('safereport') || lower.includes('oversight')) {
-    return { id: 'admi_001', name: 'SafeReport Oversight Commission' };
+  if (lower.includes('admi') || lower.includes('silentshield') || lower.includes('safereport') || lower.includes('oversight')) {
+    return { id: 'admi_001', name: 'Silent Shield Oversight Commission' };
   }
 
   return { id: 'cres_001', name: 'Crestview Institute of Technology' };

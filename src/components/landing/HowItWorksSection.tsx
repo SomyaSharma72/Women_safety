@@ -24,7 +24,7 @@ export const HowItWorksSection: React.FC<HowItWorksSectionProps> = ({
           Simple 3-Step Process
         </span>
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#1E121E] font-display-styled tracking-tight">
-          How SafeReport Works
+          How Silent Shield Works
         </h2>
       </div>
 

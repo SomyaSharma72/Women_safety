@@ -61,7 +61,7 @@ export const QuickExitOverlay: React.FC<QuickExitOverlayProps> = ({ isOpen, onCl
             onClick={onClose}
             className="text-sm font-semibold text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition cursor-pointer"
           >
-            Return to SafeReport
+            Return to Silent Shield
           </button>
 
           <button

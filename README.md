@@ -1,6 +1,6 @@
-# SilentShield
+# Silent Shield
 
-SilentShield is a privacy-first harassment and incident reporting platform designed to make reporting safer, simpler, and more actionable.
+Silent Shield is a privacy-first harassment and incident reporting platform designed to make reporting safer, simpler, and more actionable.
 
 It allows survivors to submit reports without creating an account or going through email/OTP verification, while authorized Institutional Committee (ICC) officers can securely review reports, evidence, and case information.
 
@@ -10,7 +10,7 @@ It allows survivors to submit reports without creating an account or going throu
 
 Harassment and misconduct often go unreported because survivors may fear exposure, complicated reporting procedures, or lack of confidence in how their information will be handled.
 
-SilentShield provides a structured digital reporting system where:
+Silent Shield provides a structured digital reporting system where:
 
 - Survivors can submit reports without creating an account.
 - Reports are securely stored in MongoDB.
@@ -28,7 +28,7 @@ SilentShield provides a structured digital reporting system where:
 
 Survivors can submit reports without creating an account or verifying their email address.
 
-SilentShield supports privacy-focused reporting modes so that a survivor can choose how their identity is handled.
+Silent Shield supports privacy-focused reporting modes so that a survivor can choose how their identity is handled.
 
 The reporter's email/contact information can be stored with the report and is accessible to authorized ICC officers when required for case handling.
 
@@ -90,7 +90,7 @@ Survivors can use their case/reference number to check the status of a submitted
 
 ### Persistent Database Storage
 
-SilentShield uses MongoDB for persistent application data.
+Silent Shield uses MongoDB for persistent application data.
 
 Reports remain available after:
 
@@ -104,7 +104,7 @@ The database is the source of truth for persisted reports.
 
 ### Quick Exit
 
-SilentShield includes a browser-based Quick Exit feature.
+Silent Shield includes a browser-based Quick Exit feature.
 
 Pressing **Esc** triggers a redirect to:
 
@@ -120,7 +120,7 @@ This feature is intentionally placed as a secondary convenience feature rather t
 
 ### 1. Submit a Report
 
-A survivor opens SilentShield and completes the reporting flow.
+A survivor opens Silent Shield and completes the reporting flow.
 
 No survivor account or email verification is required.
 
@@ -152,7 +152,7 @@ Authorized officers can securely view or download evidence associated with a cas
 
 ## Privacy & Security
 
-SilentShield is designed around the principle of minimizing unnecessary exposure of survivor information.
+Silent Shield is designed around the principle of minimizing unnecessary exposure of survivor information.
 
 Important security considerations include:
 
@@ -165,7 +165,7 @@ Important security considerations include:
 - Reports are persisted in MongoDB rather than relying on browser-only state.
 - Sensitive configuration values are supplied through environment variables rather than committed to the repository.
 
-> SilentShield is a hackathon/project implementation and should undergo additional security, privacy, legal, and infrastructure review before being used for real-world sensitive reporting.
+> Silent Shield is a hackathon/project implementation and should undergo additional security, privacy, legal, and infrastructure review before being used for real-world sensitive reporting.
 
 ---
 

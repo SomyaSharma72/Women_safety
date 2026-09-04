@@ -64,7 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20 gap-6">
             
-            {/* SafeReport Brand Logo */}
+            {/* Silent Shield Brand Logo */}
             <div
               onClick={() => {
                 setCurrentPortal('survivor');
@@ -77,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <div>
                 <span className="text-xl sm:text-2xl font-bold tracking-tight text-[#1E121E] font-display-styled">
-                  SafeReport
+                  Silent Shield
                 </span>
                 <p className="text-[11px] text-slate-500 font-normal hidden sm:block">
                   Privacy-first reporting &amp; pattern detection

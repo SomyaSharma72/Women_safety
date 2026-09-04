@@ -1,5 +1,5 @@
 {
-  "name": "SafeReport",
+  "name": "Silent Shield",
   "description": "A privacy-first harassment reporting platform that safeguards victim identities while detecting recurring incident patterns for institutional action.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

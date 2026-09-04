@@ -24,8 +24,8 @@ export async function connectToDatabase(): Promise<boolean> {
   try {
     console.log('[MongoDB] Connecting to MongoDB instance via MONGODB_CONNECTION_STRING...');
 
-    // Determine database name: use URI pathname if present, otherwise default to 'SafeReport'
-    let defaultDbName = 'SafeReport';
+    // Determine database name: use URI pathname if present, otherwise default to 'SilentShield'
+    let defaultDbName = process.env.MONGODB_DB_NAME || 'SilentShield';
     try {
       const parsed = new URL(connectionString.replace('mongodb+srv://', 'http://').replace('mongodb://', 'http://'));
       const pathname = parsed.pathname.replace(/^\//, '').trim();

@@ -2,11 +2,11 @@ import React from 'react';
 import { Shield, ShieldAlert, FileText, ArrowRight, Check, X, BellRing, Database, Lock, UserX, UserCheck, ShieldCheck, Zap } from 'lucide-react';
 import { ReportingMode } from '../../types';
 
-interface SosVsSafeReportProps {
+interface SosVsSilentShieldProps {
   onStartReport: () => void;
 }
 
-export const SosVsSafeReport: React.FC<SosVsSafeReportProps> = ({ onStartReport }) => {
+export const SosVsSilentShield: React.FC<SosVsSilentShieldProps> = ({ onStartReport }) => {
   return (
     <section className="py-16 bg-[#FFF8F9] border-y border-rose-100/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -18,7 +18,7 @@ export const SosVsSafeReport: React.FC<SosVsSafeReportProps> = ({ onStartReport 
             Why SOS buttons aren't enough for recurring harassment
           </h2>
           <p className="text-slate-600 text-base leading-relaxed">
-            Immediate panic systems only address active physical emergencies. SafeReport bridges the crucial gap for documenting, investigating, and stopping recurring misconduct.
+            Immediate panic systems only address active physical emergencies. Silent Shield bridges the crucial gap for documenting, investigating, and stopping recurring misconduct.
           </p>
         </div>
 
@@ -69,7 +69,7 @@ export const SosVsSafeReport: React.FC<SosVsSafeReportProps> = ({ onStartReport 
             </div>
           </div>
 
-          {/* SafeReport Paradigm */}
+          {/* Silent Shield Paradigm */}
           <div className="rounded-[32px] p-8 bg-[#1E121E] text-white shadow-xl flex flex-col justify-between relative overflow-hidden border border-[#3D2034]">
             {/* Subtle berry glow */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-[#94204D]/15 rounded-full blur-3xl pointer-events-none" />
@@ -80,7 +80,7 @@ export const SosVsSafeReport: React.FC<SosVsSafeReportProps> = ({ onStartReport 
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <span className="text-xs font-bold uppercase px-3 py-1 rounded-full bg-white/10 text-rose-200 border border-white/10">
-                  SafeReport Ecosystem
+                  Silent Shield Ecosystem
                 </span>
               </div>
 
@@ -291,3 +291,6 @@ export const ModesComparisonSection: React.FC<{ onSelectMode: (mode: ReportingMo
     </section>
   );
 };
+
+export const SosVsSafeReport = SosVsSilentShield;
+export type SosVsSafeReportProps = SosVsSilentShieldProps;

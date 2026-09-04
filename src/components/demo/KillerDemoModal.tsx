@@ -31,11 +31,11 @@ export const KillerDemoModal: React.FC<KillerDemoModalProps> = ({
   const DEMO_STEPS = [
     {
       stepNumber: 1,
-      title: '1. Victim Opens SafeReport with Complete Safety',
-      summary: 'A victim seeking to report harassment without fear opens SafeReport. An immediate Quick Exit safety button and clear privacy guarantees are provided.',
+      title: '1. Victim Opens Silent Shield with Complete Safety',
+      summary: 'A victim seeking to report harassment without fear opens Silent Shield. An immediate Quick Exit safety button and clear privacy guarantees are provided.',
       targetTab: 'home' as const,
       highlight: 'You deserve to report it safely.',
-      callout: 'SOS is for immediate physical emergency. SafeReport is for persistent documentation, pattern discovery, and safe accountability.',
+      callout: 'SOS is for immediate physical emergency. Silent Shield is for persistent documentation, pattern discovery, and safe accountability.',
     },
     {
       stepNumber: 2,
@@ -81,7 +81,7 @@ export const KillerDemoModal: React.FC<KillerDemoModalProps> = ({
     {
       stepNumber: 7,
       title: '7. System Generates Pattern Alert #PAT-8821',
-      summary: 'SafeReport flags "Potential recurring pattern detected: CS Dept / Lab 3" with 94% statistical correlation.',
+      summary: 'Silent Shield flags "Potential recurring pattern detected: CS Dept / Lab 3" with 94% statistical correlation.',
       targetTab: 'authority' as const,
       highlight: 'Potential recurring pattern detected.',
       callout: 'Transforms disconnected individual signals into concrete institutional patterns.',
@@ -143,7 +143,7 @@ export const KillerDemoModal: React.FC<KillerDemoModalProps> = ({
                 The 90-Second Walkthrough
               </span>
               <h3 className="text-xl font-bold text-[#1E121E] font-display-styled">
-                SafeReport Concept in Action
+                Silent Shield Concept in Action
               </h3>
             </div>
           </div>

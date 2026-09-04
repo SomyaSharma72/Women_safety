@@ -56,7 +56,7 @@ async function startServer() {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
-      platform: 'SafeReport',
+      platform: 'Silent Shield',
       database: isMongoConnected() ? 'MongoDB (Connected)' : 'Active Memory Fallback',
     });
   });
@@ -618,7 +618,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[SafeReport Server] Running on http://localhost:${PORT}`);
+    console.log(`[Silent Shield Server] Running on http://localhost:${PORT}`);
   });
 }
 

@@ -31,7 +31,7 @@ export const RetaliationCheckInSection: React.FC<{ onNavigateToTracker?: () => v
               </h2>
 
               <p className="text-slate-600 text-base leading-relaxed">
-                SafeReport checks in on you at scheduled intervals to ensure you are safe, supported, and free from retaliation.
+                Silent Shield checks in on you at scheduled intervals to ensure you are safe, supported, and free from retaliation.
               </p>
             </div>
 

@@ -1,17 +1,26 @@
 import { IncidentReport, CaseStatus, IccUser } from '../types';
 
-const ICC_TOKEN_KEY = 'safereport_icc_token';
-const ICC_USER_KEY = 'safereport_icc_user';
+const ICC_TOKEN_KEY = 'silentshield_icc_token';
+const ICC_USER_KEY = 'silentshield_icc_user';
 
 // ==========================================
 // ICC Session Storage Helpers
 // ==========================================
 export function getIccToken(): string | null {
-  return sessionStorage.getItem(ICC_TOKEN_KEY) || localStorage.getItem(ICC_TOKEN_KEY);
+  return (
+    sessionStorage.getItem(ICC_TOKEN_KEY) ||
+    localStorage.getItem(ICC_TOKEN_KEY) ||
+    sessionStorage.getItem('safereport_icc_token') ||
+    localStorage.getItem('safereport_icc_token')
+  );
 }
 
 export function getIccUser(): IccUser | null {
-  const raw = sessionStorage.getItem(ICC_USER_KEY) || localStorage.getItem(ICC_USER_KEY);
+  const raw =
+    sessionStorage.getItem(ICC_USER_KEY) ||
+    localStorage.getItem(ICC_USER_KEY) ||
+    sessionStorage.getItem('safereport_icc_user') ||
+    localStorage.getItem('safereport_icc_user');
   if (!raw) return null;
   try {
     return JSON.parse(raw);
@@ -32,6 +41,10 @@ export function clearIccSession(): void {
   sessionStorage.removeItem(ICC_USER_KEY);
   localStorage.removeItem(ICC_TOKEN_KEY);
   localStorage.removeItem(ICC_USER_KEY);
+  sessionStorage.removeItem('safereport_icc_token');
+  sessionStorage.removeItem('safereport_icc_user');
+  localStorage.removeItem('safereport_icc_token');
+  localStorage.removeItem('safereport_icc_user');
 }
 
 // ==========================================

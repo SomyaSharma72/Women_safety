@@ -215,7 +215,7 @@ export default function App() {
                 {/* 4. Pattern Highlight Section (Repositioned to upper-middle portion of Home page) */}
                 <PatternHighlightSection />
 
-                {/* 5. How SafeReport Works (Compact 3 horizontal step cards in 1 row) */}
+                {/* 5. How Silent Shield Works (Compact 3 horizontal step cards in 1 row) */}
                 <HowItWorksSection
                   onStartReportWithMode={handleStartReportWithMode}
                 />

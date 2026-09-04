@@ -989,7 +989,7 @@ export const ReportWizard: React.FC<ReportWizardProps> = ({
                     Enable Scheduled Safety Check-Ins
                   </h4>
                   <p className="text-xs text-slate-600">
-                    SafeReport will discreetly check in: <em>"Has anything changed since your report?"</em>
+                    Silent Shield will discreetly check in: <em>"Has anything changed since your report?"</em>
                   </p>
                 </div>
               </div>

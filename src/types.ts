@@ -1,5 +1,5 @@
 /**
- * SafeReport Core Types
+ * Silent Shield Core Types
  */
 
 export type ReportingMode = 'ANONYMOUS' | 'CONFIDENTIAL' | 'IDENTIFIED';
